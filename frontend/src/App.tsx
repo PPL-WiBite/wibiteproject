@@ -333,10 +333,11 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
     try {
       if (type === 'login') {
         await authService.login({ email, password });
+        navigate('/dashboard');
       } else {
         await authService.register({ name, email, password, role: 'receiver' });
+        navigate('/explore');
       }
-      navigate('/dashboard');
       window.location.reload();
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data?.errors?.email?.[0] || 'Terjadi kesalahan.');
