@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #10b981;
+  --color-primary-dark: #059669;
+  --color-secondary: #f59e0b;
+}
+
+@layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    @apply font-sans bg-slate-50 text-slate-900;
+  }
+  
+  .markdown-body h1 { @apply text-2xl font-bold mb-4 mt-6; }
+  .markdown-body h2 { @apply text-xl font-bold mb-3 mt-5; }
+  .markdown-body h3 { @apply text-lg font-bold mb-2 mt-4; }
+  .markdown-body p { @apply mb-4 leading-relaxed; }
+  .markdown-body ul { @apply list-disc ml-6 mb-4; }
+  .markdown-body ol { @apply list-decimal ml-6 mb-4; }
+  .markdown-body blockquote { @apply border-l-4 border-emerald-500 pl-4 py-1 italic mb-4 bg-emerald-50/50 rounded-r-lg; }
+}
