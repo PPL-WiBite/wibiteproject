@@ -48,10 +48,7 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
     && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Apache listen di port yang disediakan Render (PORT env var)
-# Render expects app to bind to $PORT (default 10000)
-RUN sed -i 's/Listen 80/Listen ${PORT}/' /etc/apache2/ports.conf \
-    && sed -i 's/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/' /etc/apache2/sites-available/000-default.conf
+# Port binding di-handle di start.sh (Render inject PORT env)
 
 WORKDIR /var/www/html
 
