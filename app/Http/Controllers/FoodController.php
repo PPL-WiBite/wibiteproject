@@ -6,12 +6,18 @@ use App\Models\Claim;
 use App\Models\Food;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class FoodController extends Controller
 {
     public function index(): JsonResponse
     {
-        $foods = Food::orderBy('created_at', 'desc')->get();
+        $foods = Food::orderBy('created_at', 'desc')->get()
+            ->map(function (Food $food) {
+                $food->remaining_portions = $food->remainingPortions();
+                return $food;
+            });
+
         return response()->json($foods);
     }
 
@@ -33,6 +39,7 @@ class FoodController extends Controller
         $food = Food::create([
             'name' => $validated['name'],
             'portions' => $validated['portions'],
+            'claimed_portions' => 0,
             'weight_kg' => $validated['weight_kg'] ?? 1,
             'pickup_address' => $validated['pickup_address'],
             'expired_date' => $validated['expired_date'] ?? 'Hari ini',
@@ -43,6 +50,8 @@ class FoodController extends Controller
             'donor_name' => $user->name,
             'image' => $validated['image'] ?? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800',
         ]);
+
+        $food->remaining_portions = $food->remainingPortions();
 
         return response()->json($food, 201);
     }
@@ -65,7 +74,9 @@ class FoodController extends Controller
             'status' => 'nullable|in:available,claimed,completed',
         ]);
 
-        $food->update(array_filter($validated, fn($v) => $v !== null));
+        $food->update(array_filter($validated, fn ($v) => $v !== null));
+
+        $food->remaining_portions = $food->remainingPortions();
 
         return response()->json($food);
     }
@@ -83,47 +94,165 @@ class FoodController extends Controller
         return response()->json(['success' => true]);
     }
 
+    /**
+     * Claim sebagian atau seluruh porsi dari sebuah makanan.
+     * Status food hanya berubah jadi "claimed" saat semua porsi habis diklaim.
+     */
     public function claim(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'food_id' => 'required|exists:foods,id',
+            'portions' => 'nullable|integer|min:1',
         ]);
 
         $user = $request->user();
-        $food = Food::findOrFail($validated['food_id']);
+        $requestedPortions = $validated['portions'] ?? 1;
 
-        if ($food->status !== 'available') {
-            return response()->json(['error' => 'Makanan tidak tersedia.'], 400);
-        }
+        $claim = DB::transaction(function () use ($validated, $user, $requestedPortions) {
+            /** @var Food $food */
+            $food = Food::lockForUpdate()->findOrFail($validated['food_id']);
 
-        $food->update([
-            'status' => 'claimed',
-            'claimed_by' => $user->id,
-            'claimed_at' => now(),
+            if ($food->status === 'completed') {
+                abort(response()->json(['error' => 'Makanan sudah tidak tersedia.'], 400));
+            }
+
+            $remaining = $food->remainingPortions();
+
+            if ($remaining <= 0) {
+                abort(response()->json(['error' => 'Porsi makanan sudah habis diklaim.'], 400));
+            }
+
+            if ($requestedPortions > $remaining) {
+                abort(response()->json([
+                    'error' => "Porsi yang diminta melebihi sisa porsi. Sisa: {$remaining}.",
+                ], 400));
+            }
+
+            $food->claimed_portions = $food->claimed_portions + $requestedPortions;
+
+            // Tandai "claimed" hanya kalau semua porsi sudah diambil
+            if ($food->claimed_portions >= $food->portions) {
+                $food->status = 'claimed';
+                if (!$food->claimed_by) {
+                    $food->claimed_by = $user->id;
+                }
+                if (!$food->claimed_at) {
+                    $food->claimed_at = now();
+                }
+            } else {
+                $food->status = 'available';
+            }
+
+            $food->save();
+
+            return Claim::create([
+                'food_id' => $food->id,
+                'receiver_id' => $user->id,
+                'portions' => $requestedPortions,
+                'status' => 'active',
+            ]);
+        });
+
+        $claim->load(['food', 'receiver:id,name,role']);
+
+        return response()->json([
+            'success' => true,
+            'claim' => $claim,
+            'food' => [
+                'id' => $claim->food->id,
+                'remaining_portions' => $claim->food->remainingPortions(),
+                'status' => $claim->food->status,
+            ],
         ]);
-
-        Claim::create([
-            'food_id' => $food->id,
-            'receiver_id' => $user->id,
-            'status' => 'active',
-        ]);
-
-        return response()->json(['success' => true]);
     }
 
+    /**
+     * Receiver mengonfirmasi penjemputan untuk claim miliknya.
+     * Food baru ditandai "completed" kalau semua claim-nya selesai dan seluruh porsi habis.
+     */
     public function completeClaim(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'food_id' => 'required|exists:foods,id',
+            'claim_id' => 'nullable|exists:claims,id',
+            'food_id' => 'nullable|exists:foods,id',
         ]);
 
-        $food = Food::findOrFail($validated['food_id']);
-        $food->update(['status' => 'completed']);
+        $user = $request->user();
 
-        Claim::where('food_id', $food->id)
-            ->where('status', 'active')
-            ->update(['status' => 'completed']);
+        return DB::transaction(function () use ($validated, $user) {
+            $claim = null;
 
-        return response()->json(['success' => true]);
+            if (!empty($validated['claim_id'])) {
+                $claim = Claim::where('id', $validated['claim_id'])
+                    ->where('receiver_id', $user->id)
+                    ->lockForUpdate()
+                    ->first();
+            } elseif (!empty($validated['food_id'])) {
+                // Fallback lama: selesaikan claim aktif milik user pada food tsb
+                $claim = Claim::where('food_id', $validated['food_id'])
+                    ->where('receiver_id', $user->id)
+                    ->where('status', 'active')
+                    ->lockForUpdate()
+                    ->first();
+            }
+
+            if (!$claim) {
+                return response()->json(['error' => 'Claim tidak ditemukan.'], 404);
+            }
+
+            $claim->status = 'completed';
+            $claim->save();
+
+            $food = Food::lockForUpdate()->findOrFail($claim->food_id);
+
+            $hasActiveClaim = Claim::where('food_id', $food->id)
+                ->where('status', 'active')
+                ->exists();
+
+            if (!$hasActiveClaim && $food->claimed_portions >= $food->portions) {
+                $food->status = 'completed';
+                $food->save();
+            }
+
+            return response()->json([
+                'success' => true,
+                'claim' => $claim,
+                'food' => [
+                    'id' => $food->id,
+                    'status' => $food->status,
+                    'remaining_portions' => $food->remainingPortions(),
+                ],
+            ]);
+        });
+    }
+
+    /**
+     * Daftar claim milik user yang login, dipakai dashboard Penerima.
+     */
+    public function myClaims(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $claims = Claim::with(['food', 'receiver:id,name,role'])
+            ->where('receiver_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($claims);
+    }
+
+    /**
+     * Daftar claim yang masuk pada makanan milik donor yang login.
+     */
+    public function incomingClaims(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $claims = Claim::with(['food', 'receiver:id,name,role'])
+            ->whereHas('food', fn ($q) => $q->where('donor_id', $user->id))
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($claims);
     }
 }

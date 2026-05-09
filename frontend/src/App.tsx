@@ -10,6 +10,7 @@ import {
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
 import ForumPage from '@/components/Forum';
+import ChatModal from '@/components/ChatModal';
 
 // --- Navbar ---
 const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
@@ -201,17 +202,31 @@ const GuidelinePage = () => {
 };
 
 // --- Explore Page ---
+const getRemaining = (food: any): number => {
+  if (typeof food.remaining_portions === 'number') return food.remaining_portions;
+  const total = Number(food.portions || 0);
+  const claimed = Number(food.claimed_portions || 0);
+  return Math.max(0, total - claimed);
+};
+
 const ExplorePage = ({ user }: { user: User | null }) => {
   const [foods, setFoods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFood, setSelectedFood] = useState<any>(null);
+  const [claimPortions, setClaimPortions] = useState(1);
+  const [claiming, setClaiming] = useState(false);
 
   const fetchFood = async () => {
     setLoading(true);
     try {
       const res = await api.get('/food');
-      setFoods(res.data.filter((f: any) => f.status === 'available'));
+      // Tampilkan makanan yang masih punya sisa porsi (bukan hanya status 'available')
+      setFoods(
+        res.data.filter(
+          (f: any) => f.status !== 'completed' && getRemaining(f) > 0,
+        ),
+      );
     } catch (error) {
       console.error('Failed to fetch food:', error);
     } finally {
@@ -221,15 +236,28 @@ const ExplorePage = ({ user }: { user: User | null }) => {
 
   useEffect(() => { fetchFood(); }, []);
 
-  const handleClaim = async (foodId: number) => {
+  useEffect(() => {
+    if (selectedFood) {
+      const remaining = getRemaining(selectedFood);
+      setClaimPortions(remaining > 0 ? 1 : 0);
+    }
+  }, [selectedFood]);
+
+  const handleClaim = async (foodId: number, portions: number) => {
     if (!user) return alert('Silakan masuk untuk mengklaim makanan.');
+    if (portions < 1) return;
+    setClaiming(true);
     try {
-      await api.post('/claim', { food_id: foodId });
-      alert('Klaim berhasil! Koordinasikan penjemputan di Dashboard.');
+      await api.post('/claim', { food_id: foodId, portions });
+      alert(
+        `Klaim berhasil untuk ${portions} porsi. Koordinasikan penjemputan lewat chat di Dashboard.`,
+      );
       setSelectedFood(null);
       fetchFood();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Gagal mengklaim makanan.');
+    } finally {
+      setClaiming(false);
     }
   };
 
@@ -258,12 +286,23 @@ const ExplorePage = ({ user }: { user: User | null }) => {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredFoods.map((food) => (
+            {filteredFoods.map((food) => {
+              const remaining = getRemaining(food);
+              const total = food.portions || 0;
+              const partial = remaining < total;
+              return (
               <motion.div key={food.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} onClick={() => setSelectedFood(food)} className="bg-white rounded-[2.5rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-emerald-500/10 transition-all cursor-pointer group">
                 <div className="relative h-56">
                   <img src={food.image} alt={food.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  <div className="absolute top-5 left-5">
-                    <span className="px-3 py-1 bg-white/90 backdrop-blur-md text-emerald-600 text-[10px] font-bold rounded-full uppercase tracking-widest border border-emerald-100">{food.portions} Porsi</span>
+                  <div className="absolute top-5 left-5 flex flex-col gap-2 items-start">
+                    <span className="px-3 py-1 bg-white/90 backdrop-blur-md text-emerald-600 text-[10px] font-bold rounded-full uppercase tracking-widest border border-emerald-100">
+                      Sisa {remaining}/{total} Porsi
+                    </span>
+                    {partial && (
+                      <span className="px-3 py-1 bg-amber-500/95 text-white text-[10px] font-black rounded-full uppercase tracking-widest">
+                        Tersisa Sebagian
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-8">
@@ -282,7 +321,8 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                   </div>
                 </div>
               </motion.div>
-            ))}
+              );
+            })}
           </div>
         )}
         {filteredFoods.length === 0 && !loading && (
@@ -293,7 +333,11 @@ const ExplorePage = ({ user }: { user: User | null }) => {
         )}
       </div>
       <AnimatePresence>
-        {selectedFood && (
+        {selectedFood && (() => {
+          const remaining = getRemaining(selectedFood);
+          const total = selectedFood.portions || 0;
+          const canClaim = remaining > 0;
+          return (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedFood(null)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
@@ -304,14 +348,80 @@ const ExplorePage = ({ user }: { user: User | null }) => {
               <div className="p-8 md:p-10">
                 <h2 className="text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">{selectedFood.name}</h2>
                 <div className="flex items-center gap-2 text-slate-500 font-medium text-sm mb-6"><MapPin className="w-4 h-4 text-emerald-500" /> {selectedFood.pickup_address}</div>
-                <p className="text-slate-600 text-sm leading-relaxed mb-6">{selectedFood.description || 'Tidak ada catatan.'}</p>
-                <div className="flex gap-4 pt-4 border-t border-slate-100">
-                  <button onClick={() => handleClaim(selectedFood.id)} className="flex-1 py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all">Klaim Makanan</button>
+
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <div className="bg-slate-50 rounded-2xl p-4 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Porsi</p>
+                    <p className="text-2xl font-black text-slate-900 mt-1">{total}</p>
+                  </div>
+                  <div className="bg-amber-50 rounded-2xl p-4 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Sudah Diklaim</p>
+                    <p className="text-2xl font-black text-amber-600 mt-1">{total - remaining}</p>
+                  </div>
+                  <div className="bg-emerald-50 rounded-2xl p-4 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Sisa</p>
+                    <p className="text-2xl font-black text-emerald-600 mt-1">{remaining}</p>
+                  </div>
                 </div>
+
+                <p className="text-slate-600 text-sm leading-relaxed mb-6">{selectedFood.description || 'Tidak ada catatan.'}</p>
+
+                {canClaim ? (
+                  <div className="pt-4 border-t border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Jumlah Porsi Yang Diklaim (maks {remaining})</label>
+                    <div className="flex items-center gap-3 mb-5">
+                      <button
+                        type="button"
+                        onClick={() => setClaimPortions((p) => Math.max(1, p - 1))}
+                        className="w-12 h-12 rounded-2xl bg-slate-50 hover:bg-slate-100 font-black text-xl text-slate-600"
+                        disabled={claiming}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        max={remaining}
+                        value={claimPortions}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value || '1');
+                          if (Number.isNaN(v)) return setClaimPortions(1);
+                          setClaimPortions(Math.min(remaining, Math.max(1, v)));
+                        }}
+                        className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl py-3 px-5 text-center font-black text-xl text-slate-900"
+                        disabled={claiming}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setClaimPortions((p) => Math.min(remaining, p + 1))}
+                        className="w-12 h-12 rounded-2xl bg-slate-50 hover:bg-slate-100 font-black text-xl text-slate-600"
+                        disabled={claiming}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => handleClaim(selectedFood.id, claimPortions)}
+                        disabled={claiming || claimPortions < 1}
+                        className="flex-1 py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all disabled:opacity-60"
+                      >
+                        {claiming ? 'Memproses...' : `Klaim ${claimPortions} Porsi`}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pt-4 border-t border-slate-100">
+                    <div className="p-5 bg-slate-50 rounded-2xl text-center text-slate-500 font-bold text-sm">
+                      Semua porsi sudah diklaim.
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
-        )}
+          );
+        })()}
       </AnimatePresence>
     </div>
   );
@@ -515,9 +625,11 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
 const DashboardPage = ({ user }: { user: User | null }) => {
   const [activeTab, setActiveTab] = useState<'listings' | 'claims' | 'history' | 'impact'>('listings');
   const [foods, setFoods] = useState<any[]>([]);
-  const [claims, setClaims] = useState<any[]>([]);
+  const [myClaims, setMyClaims] = useState<any[]>([]);
+  const [incomingClaims, setIncomingClaims] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddingFood, setIsAddingFood] = useState(false);
+  const [chatCtx, setChatCtx] = useState<{ claimId: number; foodName: string; counterpartName: string; portions?: number } | null>(null);
   const [stats, setStats] = useState({ foodSaved: 0, peopleHelped: 0 });
 
   const isDonor = user?.role === 'donor' || user?.role === 'admin';
@@ -526,22 +638,43 @@ const DashboardPage = ({ user }: { user: User | null }) => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/food');
-      const allFood = res.data;
+      const calls: Promise<any>[] = [api.get('/food')];
+      if (isDonor) calls.push(api.get('/claims/incoming'));
+      // Setiap user (termasuk donor) bisa jadi receiver -> ambil claim miliknya juga
+      calls.push(api.get('/claims/mine'));
+
+      const results = await Promise.all(calls);
+      const allFood = results[0].data;
+
       if (isDonor) {
         const myFood = allFood.filter((f: any) => f.donor_id === user?.id);
         setFoods(myFood);
-        const completed = myFood.filter((f: any) => f.status === 'completed');
-        setStats({ foodSaved: completed.reduce((acc: number, curr: any) => acc + (curr.weight_kg || 0), 0), peopleHelped: completed.reduce((acc: number, curr: any) => acc + (curr.portions || 0), 0) });
+        const completedFood = myFood.filter((f: any) => f.status === 'completed');
+        setStats({
+          foodSaved: completedFood.reduce((acc: number, curr: any) => acc + Number(curr.weight_kg || 0), 0),
+          peopleHelped: completedFood.reduce((acc: number, curr: any) => acc + Number(curr.portions || 0), 0),
+        });
+        setIncomingClaims(results[1].data);
+      } else {
+        setFoods([]);
+        setIncomingClaims([]);
       }
-      const myClaims = allFood.filter((f: any) => f.claimed_by === user?.id);
-      setClaims(myClaims);
+
+      const mine = results[results.length - 1].data;
+      setMyClaims(mine);
+
       if (isReceiver) {
-        const completed = myClaims.filter((f: any) => f.status === 'completed');
-        setStats({ foodSaved: completed.reduce((acc: number, curr: any) => acc + (curr.weight_kg || 0), 0), peopleHelped: completed.reduce((acc: number, curr: any) => acc + (curr.portions || 0), 0) });
+        const completed = mine.filter((c: any) => c.status === 'completed');
+        setStats({
+          foodSaved: completed.reduce(
+            (acc: number, c: any) => acc + Number(c.food?.weight_kg || 0) * Number(c.portions || 0) / Math.max(1, Number(c.food?.portions || 1)),
+            0,
+          ),
+          peopleHelped: completed.reduce((acc: number, c: any) => acc + Number(c.portions || 0), 0),
+        });
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -552,6 +685,7 @@ const DashboardPage = ({ user }: { user: User | null }) => {
       fetchDashboardData();
       if (isReceiver) setActiveTab('claims');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleDelete = async (id: number) => {
@@ -562,10 +696,10 @@ const DashboardPage = ({ user }: { user: User | null }) => {
     } catch (error) { console.error('Delete failed:', error); }
   };
 
-  const handleConfirmPickup = async (foodId: number) => {
+  const handleConfirmPickup = async (claimId: number) => {
     if (!confirm('Konfirmasi bahwa makanan telah dijemput?')) return;
     try {
-      await api.post('/claims/complete', { food_id: foodId });
+      await api.post('/claims/complete', { claim_id: claimId });
       alert('Penjemputan berhasil dikonfirmasi!');
       fetchDashboardData();
     } catch (error) { console.error(error); }
@@ -581,8 +715,17 @@ const DashboardPage = ({ user }: { user: User | null }) => {
 
   if (!user) return <AuthPage type="login" />;
 
-  const activeItems = isDonor ? foods.filter(f => f.status !== 'completed') : claims.filter(c => c.status !== 'completed');
-  const historyItems = isDonor ? foods.filter(f => f.status === 'completed') : claims.filter(c => c.status === 'completed');
+  const activeFoods = foods.filter(f => f.status !== 'completed');
+  const historyFoods = foods.filter(f => f.status === 'completed');
+  const activeMyClaims = myClaims.filter(c => c.status !== 'completed');
+  const historyMyClaims = myClaims.filter(c => c.status === 'completed');
+  const activeIncomingClaims = incomingClaims.filter(c => c.status !== 'completed');
+
+  const remainingOf = (food: any): number => {
+    if (!food) return 0;
+    if (typeof food.remaining_portions === 'number') return food.remaining_portions;
+    return Math.max(0, Number(food.portions || 0) - Number(food.claimed_portions || 0));
+  };
 
   return (
     <div className="pt-32 pb-20 px-4 max-w-7xl mx-auto">
@@ -595,50 +738,164 @@ const DashboardPage = ({ user }: { user: User | null }) => {
           </div>
           <nav className="bg-white p-4 rounded-[2.5rem] shadow-sm border border-slate-50 space-y-2">
             {isDonor && <button onClick={() => setActiveTab('listings')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'listings' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><Heart className="w-5 h-5" /> Kelola Donasi</button>}
-            {isReceiver && <button onClick={() => setActiveTab('claims')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'claims' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><MapPin className="w-5 h-5" /> Klaim Aktif</button>}
+            <button onClick={() => setActiveTab('claims')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'claims' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><MapPin className="w-5 h-5" /> Klaim Aktif</button>
             <button onClick={() => setActiveTab('history')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'history' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><Clock className="w-5 h-5" /> Riwayat</button>
             <button onClick={() => setActiveTab('impact')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'impact' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><TrendingUp className="w-5 h-5" /> Dampak</button>
           </nav>
           {isDonor && <button onClick={() => setIsAddingFood(true)} className="w-full bg-slate-900 text-white font-black py-6 rounded-[2.5rem] shadow-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3"><PlusCircle className="w-6 h-6 text-emerald-400" /> Donasi Makanan</button>}
         </div>
         <div className="lg:col-span-3">
-          {(activeTab === 'listings' || activeTab === 'claims') && (
+          {activeTab === 'listings' && isDonor && (
             <div className="space-y-8">
-              <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">{activeTab === 'listings' ? 'Donasi Aktif' : 'Klaim Aktif'}</h3>
-              {loading ? <div className="h-40 bg-slate-100 animate-pulse rounded-3xl" /> : activeItems.length > 0 ? (
+              <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Donasi Aktif</h3>
+              {loading ? <div className="h-40 bg-slate-100 animate-pulse rounded-3xl" /> : activeFoods.length > 0 ? (
                 <div className="grid gap-6">
-                  {activeItems.map((food) => (
-                    <div key={food.id} className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-                      <div className="flex items-center gap-6">
-                        <div className="w-20 h-20 rounded-2xl overflow-hidden"><img src={food.image} className="w-full h-full object-cover" /></div>
-                        <div>
-                          <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${food.status === 'claimed' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>{food.status === 'claimed' ? 'Diklaim' : 'Tersedia'}</span>
-                          <h4 className="text-xl font-black text-slate-900 mt-2">{food.name}</h4>
-                          <p className="text-xs text-slate-400">{food.portions} Porsi &bull; {food.pickup_address}</p>
+                  {activeFoods.map((food) => {
+                    const remaining = remainingOf(food);
+                    const total = food.portions || 0;
+                    const claimsForFood = activeIncomingClaims.filter(c => c.food_id === food.id);
+                    return (
+                      <div key={food.id} className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm">
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                          <div className="flex items-start gap-6 min-w-0">
+                            <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0"><img src={food.image} className="w-full h-full object-cover" /></div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${remaining === 0 ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                                  {remaining === 0 ? 'Porsi Habis' : 'Tersedia'}
+                                </span>
+                                <span className="text-[10px] font-black px-3 py-1 rounded-full bg-slate-50 text-slate-500 uppercase">
+                                  Sisa {remaining}/{total}
+                                </span>
+                              </div>
+                              <h4 className="text-xl font-black text-slate-900 mt-2 truncate">{food.name}</h4>
+                              <p className="text-xs text-slate-400 truncate">{food.pickup_address}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-3 shrink-0">
+                            <button onClick={() => handleDelete(food.id)} className="p-3 bg-slate-50 text-slate-300 rounded-2xl hover:bg-red-50 hover:text-red-500"><Trash2 className="w-5 h-5" /></button>
+                          </div>
                         </div>
+
+                        {claimsForFood.length > 0 && (
+                          <div className="mt-6 pt-6 border-t border-slate-100">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Penerima ({claimsForFood.length})</p>
+                            <div className="space-y-3">
+                              {claimsForFood.map(claim => (
+                                <div key={claim.id} className="flex items-center justify-between gap-3 bg-slate-50/60 rounded-2xl px-4 py-3">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center font-bold text-slate-600 text-sm border border-slate-100 shrink-0">
+                                      {claim.receiver?.name?.[0] || 'P'}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-black text-slate-900 truncate">{claim.receiver?.name || 'Penerima'}</p>
+                                      <p className="text-xs text-slate-400">{claim.portions} porsi</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => setChatCtx({
+                                      claimId: claim.id,
+                                      foodName: food.name,
+                                      counterpartName: claim.receiver?.name || 'Penerima',
+                                      portions: claim.portions,
+                                    })}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 text-xs shrink-0"
+                                  >
+                                    <MessageCircle className="w-4 h-4" /> Chat
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex gap-3">
-                        {isReceiver && food.status === 'claimed' && <button onClick={() => handleConfirmPickup(food.id)} className="px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600"><CheckCircle2 className="w-5 h-5 inline mr-2" />Selesai</button>}
-                        {isDonor && <button onClick={() => handleDelete(food.id)} className="p-3 bg-slate-50 text-slate-300 rounded-2xl hover:bg-red-50 hover:text-red-500"><Trash2 className="w-5 h-5" /></button>}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              ) : <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-100"><p className="text-slate-400 font-bold">Belum ada aktivitas.</p></div>}
+              ) : <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-100"><p className="text-slate-400 font-bold">Belum ada donasi aktif.</p></div>}
             </div>
           )}
+
+          {activeTab === 'claims' && (
+            <div className="space-y-8">
+              <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Klaim Aktif</h3>
+              {loading ? <div className="h-40 bg-slate-100 animate-pulse rounded-3xl" /> : activeMyClaims.length > 0 ? (
+                <div className="grid gap-6">
+                  {activeMyClaims.map((claim) => {
+                    const food = claim.food || {};
+                    const donorName = food.donor_name || 'Donatur';
+                    return (
+                      <div key={claim.id} className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-6 min-w-0">
+                          <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0"><img src={food.image} className="w-full h-full object-cover" /></div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-black px-3 py-1 rounded-full uppercase bg-amber-50 text-amber-500">
+                              Diklaim
+                            </span>
+                            <h4 className="text-xl font-black text-slate-900 mt-2 truncate">{food.name}</h4>
+                            <p className="text-xs text-slate-400 truncate">{claim.portions} Porsi &bull; {food.pickup_address}</p>
+                            <p className="text-[10px] text-slate-400 mt-1">Dari: {donorName}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 shrink-0">
+                          <button
+                            onClick={() => setChatCtx({
+                              claimId: claim.id,
+                              foodName: food.name,
+                              counterpartName: donorName,
+                              portions: claim.portions,
+                            })}
+                            className="px-5 py-3 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 flex items-center gap-2"
+                          >
+                            <MessageCircle className="w-5 h-5" /> Chat
+                          </button>
+                          <button
+                            onClick={() => handleConfirmPickup(claim.id)}
+                            className="px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 flex items-center gap-2"
+                          >
+                            <CheckCircle2 className="w-5 h-5" /> Selesai
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-100"><p className="text-slate-400 font-bold">Belum ada klaim aktif.</p></div>}
+            </div>
+          )}
+
           {activeTab === 'history' && (
             <div className="space-y-8">
               <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Riwayat</h3>
-              {historyItems.length > 0 ? historyItems.map(food => (
-                <div key={food.id} className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                    <div><p className="font-black text-slate-900">{food.name}</p><p className="text-xs text-slate-400">{food.portions} Porsi</p></div>
+              <div className="space-y-3">
+                {isDonor && historyFoods.map(food => (
+                  <div key={`food-${food.id}`} className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                      <div>
+                        <p className="font-black text-slate-900">{food.name}</p>
+                        <p className="text-xs text-slate-400">{food.portions} Porsi tersalurkan</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full">Donasi Selesai</span>
                   </div>
-                  <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full">Sukses</span>
-                </div>
-              )) : <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-100"><p className="text-slate-400 font-bold">Belum ada riwayat.</p></div>}
+                ))}
+                {historyMyClaims.map(claim => (
+                  <div key={`claim-${claim.id}`} className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                      <div>
+                        <p className="font-black text-slate-900">{claim.food?.name || 'Makanan'}</p>
+                        <p className="text-xs text-slate-400">{claim.portions} Porsi diterima</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full">Klaim Selesai</span>
+                  </div>
+                ))}
+                {historyFoods.length === 0 && historyMyClaims.length === 0 && (
+                  <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-100"><p className="text-slate-400 font-bold">Belum ada riwayat.</p></div>
+                )}
+              </div>
             </div>
           )}
           {activeTab === 'impact' && (
@@ -646,12 +903,12 @@ const DashboardPage = ({ user }: { user: User | null }) => {
               <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Jejak Kebaikan</h3>
               <div className="grid md:grid-cols-2 gap-8">
                 <div className="bg-emerald-500 p-12 rounded-[4rem] text-white shadow-2xl shadow-emerald-500/20">
-                  <div className="text-7xl font-black">{stats.foodSaved}<span className="text-2xl ml-2 text-emerald-200">kg</span></div>
+                  <div className="text-7xl font-black">{Number(stats.foodSaved).toFixed(1)}<span className="text-2xl ml-2 text-emerald-200">kg</span></div>
                   <div className="text-emerald-100 font-black uppercase tracking-widest text-[10px] mt-4">Makanan Terselamatkan</div>
                 </div>
                 <div className="bg-slate-900 p-12 rounded-[4rem] text-white shadow-2xl">
                   <div className="text-7xl font-black">{stats.peopleHelped}</div>
-                  <div className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-4">Penerima Manfaat</div>
+                  <div className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-4">Porsi Tersalurkan</div>
                 </div>
               </div>
             </div>
@@ -661,6 +918,9 @@ const DashboardPage = ({ user }: { user: User | null }) => {
       <AnimatePresence>
         {isAddingFood && (
           <AddFoodModal onClose={() => setIsAddingFood(false)} onAdd={handleAddFood} />
+        )}
+        {chatCtx && user && (
+          <ChatModal user={user} context={chatCtx} onClose={() => setChatCtx(null)} />
         )}
       </AnimatePresence>
     </div>

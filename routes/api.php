@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\ForumController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\AdminMiddleware;
@@ -55,6 +56,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Claim
     Route::post('/claim', [FoodController::class, 'claim']);
     Route::post('/claims/complete', [FoodController::class, 'completeClaim']);
+    Route::get('/claims/mine', [FoodController::class, 'myClaims']);
+    Route::get('/claims/incoming', [FoodController::class, 'incomingClaims']);
+
+    // Chat antara donor dan receiver per claim
+    Route::get('/claims/{claim}/messages', [MessageController::class, 'index']);
+    Route::post('/claims/{claim}/messages', [MessageController::class, 'store']);
 
     // Forum - CRUD
     Route::post('/forum', [ForumController::class, 'store']);
