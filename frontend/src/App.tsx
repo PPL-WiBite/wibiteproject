@@ -333,11 +333,10 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
     try {
       if (type === 'login') {
         await authService.login({ email, password });
-        navigate('/dashboard');
       } else {
         await authService.register({ name, email, password, role: 'receiver' });
-        navigate('/choose-role');
       }
+      navigate('/dashboard');
       window.location.reload();
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data?.errors?.email?.[0] || 'Terjadi kesalahan.');
@@ -490,7 +489,7 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
               ) : (
                 <UserIcon className="w-5 h-5" />
               )}
-              {type === 'login' ? 'Masuk Sekarang' : 'Lanjut Daftar'}
+              {type === 'login' ? 'Masuk Sekarang' : 'Buat Akun'}
             </button>
           </form>
 
@@ -510,130 +509,6 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
     </div>
   );
 };
-
-// --- Choose Role Page (muncul setelah register) ---
-const ChooseRolePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User) => void }) => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState<'donor' | 'receiver' | null>(null);
-
-  if (!user) {
-    return <AuthPage type="login" />;
-  }
-
-  const handleChoose = async (role: 'donor' | 'receiver') => {
-    setLoading(role);
-    try {
-      const updated = await authService.updateRole(role);
-      onUpdate(updated);
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Failed to update role:', error);
-      alert('Gagal menyimpan pilihan. Coba lagi.');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 pt-20 px-4 pb-20">
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-3xl"
-      >
-        <div className="text-center mb-12">
-          <span className="inline-block px-4 py-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-black rounded-full mb-6 tracking-widest uppercase">
-            Langkah Terakhir
-          </span>
-          <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-            Halo, {user.name.split(' ')[0]}. <br />
-            Bagaimana kamu ingin <span className="text-emerald-500 italic">berkontribusi?</span>
-          </h1>
-          <p className="text-slate-500 font-medium text-sm max-w-lg mx-auto leading-relaxed">
-            Pilih peranmu di komunitas WiBite. Jangan khawatir, kamu bisa mengubahnya kapan saja lewat halaman profil.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Donor Card */}
-          <motion.button
-            whileHover={{ y: -4 }}
-            onClick={() => handleChoose('donor')}
-            disabled={loading !== null}
-            className="group relative bg-white p-10 rounded-[3rem] border-2 border-slate-100 hover:border-emerald-500 shadow-sm hover:shadow-2xl hover:shadow-emerald-500/10 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden isolate"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full translate-x-12 -translate-y-12 -z-10 group-hover:scale-150 transition-transform duration-500" />
-            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center text-white mb-6 shadow-xl shadow-emerald-500/20 group-hover:scale-110 transition-transform">
-              <HandHeart className="w-8 h-8" />
-            </div>
-            <h3 className="text-2xl font-black text-slate-900 mb-3">Jadi Donor</h3>
-            <p className="text-slate-500 text-sm leading-relaxed mb-6 font-medium">
-              Aku punya makanan berlebih dan ingin membagikannya kepada komunitas. Bantu kurangi limbah pangan.
-            </p>
-            <ul className="space-y-2 mb-6">
-              {['Bisa mendaftarkan donasi makanan', 'Kelola listing di dashboard', 'Koordinasi dengan penerima'].map((item) => (
-                <li key={item} className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> {item}
-                </li>
-              ))}
-            </ul>
-            <div className="flex items-center gap-2 text-xs font-black text-emerald-500 uppercase tracking-widest">
-              {loading === 'donor' ? (
-                <>
-                  <Clock className="w-4 h-4 animate-spin" /> Menyimpan...
-                </>
-              ) : (
-                <>
-                  Pilih Donor <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </div>
-          </motion.button>
-
-          {/* Receiver Card */}
-          <motion.button
-            whileHover={{ y: -4 }}
-            onClick={() => handleChoose('receiver')}
-            disabled={loading !== null}
-            className="group relative bg-white p-10 rounded-[3rem] border-2 border-slate-100 hover:border-amber-500 shadow-sm hover:shadow-2xl hover:shadow-amber-500/10 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden isolate"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full translate-x-12 -translate-y-12 -z-10 group-hover:scale-150 transition-transform duration-500" />
-            <div className="w-16 h-16 bg-amber-500 rounded-2xl flex items-center justify-center text-white mb-6 shadow-xl shadow-amber-500/20 group-hover:scale-110 transition-transform">
-              <Utensils className="w-8 h-8" />
-            </div>
-            <h3 className="text-2xl font-black text-slate-900 mb-3">Jadi Penerima</h3>
-            <p className="text-slate-500 text-sm leading-relaxed mb-6 font-medium">
-              Aku mencari makanan layak yang dibagikan oleh donatur di sekitarku untuk dikonsumsi.
-            </p>
-            <ul className="space-y-2 mb-6">
-              {['Jelajah donasi terdekat', 'Klaim makanan yang tersedia', 'Riwayat klaim tersimpan'].map((item) => (
-                <li key={item} className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                  <CheckCircle2 className="w-4 h-4 text-amber-500 flex-shrink-0" /> {item}
-                </li>
-              ))}
-            </ul>
-            <div className="flex items-center gap-2 text-xs font-black text-amber-500 uppercase tracking-widest">
-              {loading === 'receiver' ? (
-                <>
-                  <Clock className="w-4 h-4 animate-spin" /> Menyimpan...
-                </>
-              ) : (
-                <>
-                  Pilih Penerima <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </div>
-          </motion.button>
-        </div>
-
-        <p className="text-center text-xs text-slate-400 font-medium mt-10 italic">
-          Kamu bisa berganti peran kapan saja di halaman profil.
-        </p>
-      </motion.div>
-    </div>
-  );
-};
-
 
 // --- Dashboard Page ---
 const DashboardPage = ({ user }: { user: User | null }) => {
@@ -848,6 +723,7 @@ const AddFoodModal = ({ onClose, onAdd }: { onClose: () => void; onAdd: (data: a
 const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User) => void }) => {
   const [formData, setFormData] = useState({ name: user?.name || '', phone: user?.phone || '', address: user?.address || '' });
   const [loading, setLoading] = useState(false);
+  const [roleLoading, setRoleLoading] = useState<'donor' | 'receiver' | null>(null);
 
   if (!user) return <AuthPage type="login" />;
 
@@ -862,10 +738,127 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
     finally { setLoading(false); }
   };
 
+  const handleRoleChange = async (newRole: 'donor' | 'receiver') => {
+    if (user.role === newRole) return;
+    // Admin tidak bisa jadi donor/receiver biasa
+    if (user.role === 'admin') {
+      alert('Peran Admin tidak bisa diubah dari halaman ini.');
+      return;
+    }
+    setRoleLoading(newRole);
+    try {
+      const updated = await authService.updateRole(newRole);
+      onUpdate(updated);
+    } catch (error) {
+      console.error('Gagal mengubah peran:', error);
+      alert('Gagal mengubah peran. Coba lagi.');
+    } finally {
+      setRoleLoading(null);
+    }
+  };
+
+  const canSwitchRole = user.role === 'donor' || user.role === 'receiver';
+
   return (
     <div className="pt-32 pb-20 px-4">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-4xl font-black text-slate-900 mb-8">Profil Saya</h1>
+      <div className="max-w-2xl mx-auto space-y-8">
+        <div>
+          <h1 className="text-4xl font-black text-slate-900 mb-2">Profil Saya</h1>
+          <p className="text-slate-400 font-medium italic text-sm">Kelola data diri dan peran kamu di komunitas WiBite.</p>
+        </div>
+
+        {/* Role Switcher */}
+        {canSwitchRole && (
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-50 shadow-sm">
+            <div className="flex items-start gap-3 mb-6">
+              <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
+                <HandHeart className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 leading-tight">Peran Saya</h3>
+                <p className="text-xs text-slate-400 font-medium mt-1">
+                  Pilih kamu ingin berkontribusi sebagai penerima atau pendonor makanan.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* Penerima */}
+              <button
+                type="button"
+                onClick={() => handleRoleChange('receiver')}
+                disabled={roleLoading !== null}
+                className={`relative p-5 rounded-2xl border-2 text-left transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                  user.role === 'receiver'
+                    ? 'border-amber-500 bg-amber-50 shadow-lg shadow-amber-500/10'
+                    : 'border-slate-100 bg-white hover:border-amber-300 hover:bg-amber-50/30'
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors ${
+                    user.role === 'receiver' ? 'bg-amber-500 text-white' : 'bg-slate-50 text-slate-400'
+                  }`}
+                >
+                  <Utensils className="w-5 h-5" />
+                </div>
+                <p className={`text-sm font-black uppercase tracking-wider ${user.role === 'receiver' ? 'text-amber-700' : 'text-slate-900'}`}>
+                  Penerima
+                </p>
+                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                  Klaim makanan dari donatur
+                </p>
+                {user.role === 'receiver' && (
+                  <span className="absolute top-3 right-3 text-[9px] font-black text-amber-600 uppercase tracking-widest bg-white px-2 py-0.5 rounded-full border border-amber-200">
+                    Aktif
+                  </span>
+                )}
+                {roleLoading === 'receiver' && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm rounded-2xl">
+                    <Clock className="w-5 h-5 animate-spin text-amber-500" />
+                  </div>
+                )}
+              </button>
+
+              {/* Pendonor */}
+              <button
+                type="button"
+                onClick={() => handleRoleChange('donor')}
+                disabled={roleLoading !== null}
+                className={`relative p-5 rounded-2xl border-2 text-left transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                  user.role === 'donor'
+                    ? 'border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/10'
+                    : 'border-slate-100 bg-white hover:border-emerald-300 hover:bg-emerald-50/30'
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors ${
+                    user.role === 'donor' ? 'bg-emerald-500 text-white' : 'bg-slate-50 text-slate-400'
+                  }`}
+                >
+                  <HandHeart className="w-5 h-5" />
+                </div>
+                <p className={`text-sm font-black uppercase tracking-wider ${user.role === 'donor' ? 'text-emerald-700' : 'text-slate-900'}`}>
+                  Pendonor
+                </p>
+                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                  Bagikan makanan berlebih
+                </p>
+                {user.role === 'donor' && (
+                  <span className="absolute top-3 right-3 text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-white px-2 py-0.5 rounded-full border border-emerald-200">
+                    Aktif
+                  </span>
+                )}
+                {roleLoading === 'donor' && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm rounded-2xl">
+                    <Clock className="w-5 h-5 animate-spin text-emerald-500" />
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Form Data Diri */}
         <form onSubmit={handleSubmit} className="bg-white p-10 rounded-[3rem] border border-slate-50 shadow-sm space-y-6">
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Nama</label>
@@ -1005,7 +998,6 @@ const App = () => {
             <Route path="/admin" element={<AdminDashboard user={user} />} />
             <Route path="/login" element={<AuthPage type="login" />} />
             <Route path="/register" element={<AuthPage type="register" />} />
-            <Route path="/choose-role" element={<ChooseRolePage user={user} onUpdate={setUser} />} />
           </Routes>
         </main>
         <footer className="bg-white border-t border-slate-100 mt-auto">

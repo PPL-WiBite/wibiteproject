@@ -17,7 +17,7 @@ git init
 git add .
 git commit -m "Initial WiBite Laravel"
 git branch -M main
-git remote add origin https://github.com/USERNAME/wibite.git
+git remote add origin https://github.com/PPL-WiBite/wibiteproject.git  
 git push -u origin main
 ```
 

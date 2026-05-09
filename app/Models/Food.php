@@ -16,6 +16,7 @@ class Food extends Model
     protected $fillable = [
         'name',
         'portions',
+        'claimed_portions',
         'weight_kg',
         'pickup_address',
         'expired_date',
@@ -35,6 +36,11 @@ class Food extends Model
             'claimed_at' => 'datetime',
             'weight_kg' => 'decimal:2',
         ];
+    }
+
+    public function remainingPortions(): int
+    {
+        return max(0, $this->portions - $this->claimed_portions);
     }
 
     public function donor(): BelongsTo
