@@ -150,11 +150,11 @@ class FoodController extends Controller
     {
         $validated = $request->validate([
             'food_id' => 'required|exists:foods,id',
-            'portions' => 'nullable|integer|min:1',
+            'portions' => 'nullable|integer|min:1|max:1',
         ]);
 
         $user = $request->user();
-        $requestedPortions = $validated['portions'] ?? 1;
+        $requestedPortions = 1;
 
         $claim = DB::transaction(function () use ($validated, $user, $requestedPortions) {
             // Pastikan user belum punya claim aktif lain

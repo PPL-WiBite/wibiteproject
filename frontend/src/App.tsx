@@ -374,47 +374,16 @@ const ExplorePage = ({ user }: { user: User | null }) => {
 
                 {canClaim ? (
                   <div className="pt-4 border-t border-slate-100">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Jumlah Porsi Yang Diklaim (maks {remaining})</label>
-                    <div className="flex items-center gap-3 mb-5">
-                      <button
-                        type="button"
-                        onClick={() => setClaimPortions((p) => Math.max(1, p - 1))}
-                        className="w-12 h-12 rounded-2xl bg-slate-50 hover:bg-slate-100 font-black text-xl text-slate-600"
-                        disabled={claiming}
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        min={1}
-                        max={remaining}
-                        value={claimPortions}
-                        onChange={(e) => {
-                          const v = parseInt(e.target.value || '1');
-                          if (Number.isNaN(v)) return setClaimPortions(1);
-                          setClaimPortions(Math.min(remaining, Math.max(1, v)));
-                        }}
-                        className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl py-3 px-5 text-center font-black text-xl text-slate-900"
-                        disabled={claiming}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setClaimPortions((p) => Math.min(remaining, p + 1))}
-                        className="w-12 h-12 rounded-2xl bg-slate-50 hover:bg-slate-100 font-black text-xl text-slate-600"
-                        disabled={claiming}
-                      >
-                        +
-                      </button>
-                    </div>
-                    <div className="flex gap-4">
-                      <button
-                        onClick={() => handleClaim(selectedFood.id, claimPortions)}
-                        disabled={claiming || claimPortions < 1}
-                        className="flex-1 py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all disabled:opacity-60"
-                      >
-                        {claiming ? 'Memproses...' : `Klaim ${claimPortions} Porsi`}
-                      </button>
-                    </div>
+                    <p className="text-xs text-slate-500 mb-4 text-center">
+                      Setiap penerima hanya bisa klaim <strong className="text-slate-900">1 porsi</strong> per makanan.
+                    </p>
+                    <button
+                      onClick={() => handleClaim(selectedFood.id, 1)}
+                      disabled={claiming}
+                      className="w-full py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all disabled:opacity-60"
+                    >
+                      {claiming ? 'Memproses...' : 'Klaim 1 Porsi'}
+                    </button>
                   </div>
                 ) : (
                   <div className="pt-4 border-t border-slate-100">
