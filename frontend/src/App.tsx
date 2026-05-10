@@ -21,9 +21,6 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
-  // Backdrop (blur + warna) hanya muncul di halaman login/register.
-  const showBackdrop = location.pathname === '/login' || location.pathname === '/register';
-
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener('scroll', handleScroll);
@@ -42,13 +39,9 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
         : 'text-slate-500 hover:bg-white hover:text-emerald-500'
     }`;
 
-  const navBg = showBackdrop
-    ? (isScrolled
-        ? 'bg-white/80 backdrop-blur-md shadow-sm'
-        : 'bg-white/70 backdrop-blur-md')
-    : (isScrolled
-        ? 'bg-white/90 backdrop-blur-md shadow-sm'
-        : 'bg-transparent');
+  const navBg = isScrolled
+    ? 'bg-white/90 backdrop-blur-md shadow-sm'
+    : 'bg-transparent';
 
   const primaryLink = user && (user.role === 'donor' || user.role === 'admin')
     ? { to: '/donate', label: 'Donor Makanan' }
@@ -988,221 +981,285 @@ const DashboardPage = ({ user }: { user: User | null }) => {
           {isDonor && <button onClick={() => setIsAddingFood(true)} className="w-full bg-slate-900 text-white font-black py-6 rounded-[2.5rem] shadow-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3"><PlusCircle className="w-6 h-6 text-emerald-400" /> Donasi Makanan</button>}
         </div>
         <div className="lg:col-span-3">
-          {activeTab === 'listings' && isDonor && (
-            <div className="space-y-8">
-              <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Donasi Aktif</h3>
-              {loading ? <div className="h-40 bg-slate-100 animate-pulse rounded-3xl" /> : activeFoods.length > 0 ? (
-                <div className="grid gap-6">
-                  {activeFoods.map((food) => {
-                    const remaining = remainingOf(food);
-                    const total = food.portions || 0;
-                    const claimsForFood = activeIncomingClaims.filter(c => c.food_id === food.id);
-                    return (
-                      <div key={food.id} className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm">
-                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                          <div className="flex items-start gap-6 min-w-0">
-                            <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0"><img src={food.image} className="w-full h-full object-cover" /></div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${remaining === 0 ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>
-                                  {remaining === 0 ? 'Porsi Habis' : 'Tersedia'}
-                                </span>
-                                <span className="text-[10px] font-black px-3 py-1 rounded-full bg-slate-50 text-slate-500 uppercase">
-                                  Sisa {remaining}/{total}
-                                </span>
-                              </div>
-                              <h4 className="text-xl font-black text-slate-900 mt-2 truncate">{food.name}</h4>
-                              <p className="text-xs text-slate-400 truncate">{food.pickup_address}</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-3 shrink-0">
-                            <button onClick={() => handleDelete(food.id)} className="p-3 bg-slate-50 text-slate-300 rounded-2xl hover:bg-red-50 hover:text-red-500"><Trash2 className="w-5 h-5" /></button>
-                          </div>
-                        </div>
-
-                        {claimsForFood.length > 0 && (
-                          <div className="mt-6 pt-6 border-t border-slate-100">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Penerima ({claimsForFood.length})</p>
-                            <div className="space-y-3">
-                              {claimsForFood.map(claim => {
-                                const donorConfirmed = !!claim.donor_completed_at;
-                                const receiverConfirmed = !!claim.receiver_completed_at;
-                                return (
-                                <div key={claim.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/60 rounded-2xl px-4 py-3">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center font-bold text-slate-600 text-sm border border-slate-100 shrink-0">
-                                      {claim.receiver?.name?.[0] || 'P'}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-black text-slate-900 truncate">{claim.receiver?.name || 'Penerima'}</p>
-                                      <p className="text-xs text-slate-400">{claim.portions} porsi</p>
-                                      <div className="flex flex-wrap gap-1 mt-1">
-                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${donorConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                                          Donor {donorConfirmed ? 'OK' : 'menunggu'}
-                                        </span>
-                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${receiverConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                                          Penerima {receiverConfirmed ? 'OK' : 'menunggu'}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-2 shrink-0">
-                                    <button
-                                      onClick={() => setChatCtx({
-                                        claimId: claim.id,
-                                        foodName: food.name,
-                                        counterpartName: claim.receiver?.name || 'Penerima',
-                                        portions: claim.portions,
-                                      })}
-                                      className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 text-xs"
-                                    >
-                                      <MessageCircle className="w-4 h-4" /> Chat
-                                    </button>
-                                    <button
-                                      onClick={() => handleConfirmPickup(claim.id)}
-                                      disabled={donorConfirmed}
-                                      className={`flex items-center gap-2 px-4 py-2 font-bold rounded-xl text-xs ${
-                                        donorConfirmed
-                                          ? 'bg-emerald-50 text-emerald-600 cursor-default'
-                                          : 'bg-emerald-500 text-white hover:bg-emerald-600'
-                                      }`}
-                                    >
-                                      <CheckCircle2 className="w-4 h-4" />
-                                      {donorConfirmed ? 'Sudah Konfirmasi' : 'Selesai'}
-                                    </button>
-                                  </div>
+          {/* Wrapper layout seragam untuk semua tab */}
+          {(() => {
+            const header = {
+              listings: { eyebrow: 'Donor', title: 'Kelola Donasi', subtitle: 'Pantau donasi makanan kamu dan siapa saja yang mengklaim.' },
+              claims: { eyebrow: 'Penerima', title: 'Klaim Aktif', subtitle: 'Koordinasikan penjemputan dan tandai sebagai selesai.' },
+              history: { eyebrow: 'Arsip', title: 'Riwayat', subtitle: 'Transaksi yang sudah diselesaikan kedua pihak.' },
+              impact: { eyebrow: 'Dampak', title: 'Jejak Kebaikan', subtitle: 'Ringkasan kontribusi kamu untuk komunitas.' },
+            } as const;
+            const h = header[activeTab];
+            if (activeTab === 'impact' && !isDonor) return null;
+            if (activeTab === 'listings' && !isDonor) return null;
+            return (
+              <section className="space-y-6">
+                <header>
+                  <span className="inline-block text-emerald-500 font-black uppercase tracking-widest text-[10px] bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100">
+                    {h.eyebrow}
+                  </span>
+                  <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight mt-4">{h.title}</h3>
+                  <p className="text-slate-500 font-medium italic text-sm mt-2">{h.subtitle}</p>
+                </header>
+                <div className="space-y-4">
+                  {/* Konten tab */}
+                  {activeTab === 'listings' && isDonor && (
+                    loading ? (
+                      <div className="h-40 bg-slate-100 animate-pulse rounded-[2rem]" />
+                    ) : activeFoods.length > 0 ? (
+                      activeFoods.map((food) => {
+                        const remaining = remainingOf(food);
+                        const total = food.portions || 0;
+                        const claimsForFood = activeIncomingClaims.filter(c => c.food_id === food.id);
+                        return (
+                          <div key={food.id} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8">
+                            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                              <div className="flex items-start gap-4 md:gap-6 min-w-0">
+                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shrink-0 bg-slate-100">
+                                  <img src={food.image} className="w-full h-full object-cover" />
                                 </div>
-                                );
-                              })}
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${remaining === 0 ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                                      {remaining === 0 ? 'Porsi Habis' : 'Tersedia'}
+                                    </span>
+                                    <span className="text-[10px] font-black px-3 py-1 rounded-full bg-slate-50 text-slate-500 uppercase">
+                                      Sisa {remaining}/{total}
+                                    </span>
+                                  </div>
+                                  <h4 className="text-lg md:text-xl font-black text-slate-900 mt-2 truncate">{food.name}</h4>
+                                  <p className="text-xs text-slate-400 truncate">{food.pickup_address}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 shrink-0">
+                                <button onClick={() => handleDelete(food.id)} className="p-3 bg-slate-50 text-slate-300 rounded-xl hover:bg-red-50 hover:text-red-500">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {claimsForFood.length > 0 && (
+                              <div className="mt-6 pt-6 border-t border-slate-100">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Penerima ({claimsForFood.length})</p>
+                                <div className="space-y-3">
+                                  {claimsForFood.map(claim => {
+                                    const donorConfirmed = !!claim.donor_completed_at;
+                                    const receiverConfirmed = !!claim.receiver_completed_at;
+                                    return (
+                                      <div key={claim.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/60 rounded-2xl px-4 py-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                          <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center font-bold text-slate-600 text-sm border border-slate-100 shrink-0">
+                                            {claim.receiver?.name?.[0] || 'P'}
+                                          </div>
+                                          <div className="min-w-0">
+                                            <p className="text-sm font-black text-slate-900 truncate">{claim.receiver?.name || 'Penerima'}</p>
+                                            <p className="text-xs text-slate-400">{claim.portions} porsi</p>
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${donorConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                Donor {donorConfirmed ? 'OK' : 'menunggu'}
+                                              </span>
+                                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${receiverConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                Penerima {receiverConfirmed ? 'OK' : 'menunggu'}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="flex gap-2 shrink-0">
+                                          <button
+                                            onClick={() => setChatCtx({
+                                              claimId: claim.id,
+                                              foodName: food.name,
+                                              counterpartName: claim.receiver?.name || 'Penerima',
+                                              portions: claim.portions,
+                                            })}
+                                            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 text-xs"
+                                          >
+                                            <MessageCircle className="w-4 h-4" /> Chat
+                                          </button>
+                                          <button
+                                            onClick={() => handleConfirmPickup(claim.id)}
+                                            disabled={donorConfirmed}
+                                            className={`flex items-center gap-2 px-4 py-2 font-bold rounded-xl text-xs ${
+                                              donorConfirmed
+                                                ? 'bg-emerald-50 text-emerald-600 cursor-default'
+                                                : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                            }`}
+                                          >
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            {donorConfirmed ? 'Sudah Konfirmasi' : 'Selesai'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-16 bg-white rounded-[2rem] border border-dashed border-slate-100">
+                        <Heart className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                        <p className="text-slate-400 font-bold text-sm">Belum ada donasi aktif.</p>
+                      </div>
+                    )
+                  )}
+
+                  {activeTab === 'claims' && (
+                    loading ? (
+                      <div className="h-40 bg-slate-100 animate-pulse rounded-[2rem]" />
+                    ) : activeMyClaims.length > 0 ? (
+                      activeMyClaims.map((claim) => {
+                        const food = claim.food || {};
+                        const donorName = food.donor_name || 'Donatur';
+                        const donorConfirmed = !!claim.donor_completed_at;
+                        const receiverConfirmed = !!claim.receiver_completed_at;
+                        const statusLabel = receiverConfirmed && !donorConfirmed
+                          ? 'Menunggu Donor'
+                          : !receiverConfirmed && donorConfirmed
+                            ? 'Donor Konfirmasi, Giliranmu'
+                            : 'Diklaim';
+                        return (
+                          <div key={claim.id} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="flex items-start gap-4 md:gap-6 min-w-0">
+                              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shrink-0 bg-slate-100">
+                                <img src={food.image} className="w-full h-full object-cover" />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-black px-3 py-1 rounded-full uppercase bg-amber-50 text-amber-500">
+                                  {statusLabel}
+                                </span>
+                                <h4 className="text-lg md:text-xl font-black text-slate-900 mt-2 truncate">{food.name}</h4>
+                                <p className="text-xs text-slate-400 truncate">{claim.portions} Porsi &bull; {food.pickup_address}</p>
+                                <p className="text-[10px] text-slate-400 mt-1">Dari: {donorName}</p>
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${donorConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                    Donor {donorConfirmed ? 'OK' : 'menunggu'}
+                                  </span>
+                                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${receiverConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                    Penerima {receiverConfirmed ? 'OK' : 'menunggu'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                              <button
+                                onClick={() => setChatCtx({
+                                  claimId: claim.id,
+                                  foodName: food.name,
+                                  counterpartName: donorName,
+                                  portions: claim.portions,
+                                })}
+                                className="px-4 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 flex items-center gap-2 text-xs"
+                              >
+                                <MessageCircle className="w-4 h-4" /> Chat
+                              </button>
+                              <button
+                                onClick={() => handleConfirmPickup(claim.id)}
+                                disabled={receiverConfirmed}
+                                className={`px-4 py-2.5 font-bold rounded-xl flex items-center gap-2 text-xs ${
+                                  receiverConfirmed
+                                    ? 'bg-emerald-50 text-emerald-600 cursor-default'
+                                    : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                }`}
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                {receiverConfirmed ? 'Sudah Konfirmasi' : 'Selesai'}
+                              </button>
                             </div>
                           </div>
-                        )}
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-16 bg-white rounded-[2rem] border border-dashed border-slate-100">
+                        <MapPin className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                        <p className="text-slate-400 font-bold text-sm">Belum ada klaim aktif.</p>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-100"><p className="text-slate-400 font-bold">Belum ada donasi aktif.</p></div>}
-            </div>
-          )}
+                    )
+                  )}
 
-          {activeTab === 'claims' && (
-            <div className="space-y-8">
-              <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Klaim Aktif</h3>
-              {loading ? <div className="h-40 bg-slate-100 animate-pulse rounded-3xl" /> : activeMyClaims.length > 0 ? (
-                <div className="grid gap-6">
-                  {activeMyClaims.map((claim) => {
-                    const food = claim.food || {};
-                    const donorName = food.donor_name || 'Donatur';
-                    const donorConfirmed = !!claim.donor_completed_at;
-                    const receiverConfirmed = !!claim.receiver_completed_at;
-                    const statusLabel = receiverConfirmed && !donorConfirmed
-                      ? 'Menunggu Donor'
-                      : !receiverConfirmed && donorConfirmed
-                        ? 'Donor Konfirmasi, Giliranmu'
-                        : 'Diklaim';
-                    return (
-                      <div key={claim.id} className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="flex items-center gap-6 min-w-0">
-                          <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0"><img src={food.image} className="w-full h-full object-cover" /></div>
-                          <div className="min-w-0">
-                            <span className="text-[10px] font-black px-3 py-1 rounded-full uppercase bg-amber-50 text-amber-500">
-                              {statusLabel}
-                            </span>
-                            <h4 className="text-xl font-black text-slate-900 mt-2 truncate">{food.name}</h4>
-                            <p className="text-xs text-slate-400 truncate">{claim.portions} Porsi &bull; {food.pickup_address}</p>
-                            <p className="text-[10px] text-slate-400 mt-1">Dari: {donorName}</p>
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${donorConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                                Donor {donorConfirmed ? 'OK' : 'menunggu'}
-                              </span>
-                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${receiverConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                                Penerima {receiverConfirmed ? 'OK' : 'menunggu'}
-                              </span>
+                  {activeTab === 'history' && (
+                    loading ? (
+                      <div className="h-40 bg-slate-100 animate-pulse rounded-[2rem]" />
+                    ) : (historyFoods.length > 0 || historyMyClaims.length > 0) ? (
+                      <>
+                        {isDonor && historyFoods.map(food => (
+                          <div key={`food-${food.id}`} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-start gap-4 md:gap-6 min-w-0">
+                              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shrink-0 bg-slate-100">
+                                {food.image ? <img src={food.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><CheckCircle2 className="w-6 h-6 text-slate-300" /></div>}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-black px-3 py-1 rounded-full uppercase bg-emerald-50 text-emerald-600">Donasi Selesai</span>
+                                <h4 className="text-lg md:text-xl font-black text-slate-900 mt-2 truncate">{food.name}</h4>
+                                <p className="text-xs text-slate-400 truncate">{food.portions} Porsi tersalurkan &bull; {food.pickup_address}</p>
+                              </div>
                             </div>
+                            <CheckCircle2 className="w-6 h-6 text-emerald-500 shrink-0" />
                           </div>
-                        </div>
-                        <div className="flex gap-3 shrink-0">
-                          <button
-                            onClick={() => setChatCtx({
-                              claimId: claim.id,
-                              foodName: food.name,
-                              counterpartName: donorName,
-                              portions: claim.portions,
-                            })}
-                            className="px-5 py-3 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 flex items-center gap-2"
-                          >
-                            <MessageCircle className="w-5 h-5" /> Chat
-                          </button>
-                          <button
-                            onClick={() => handleConfirmPickup(claim.id)}
-                            disabled={receiverConfirmed}
-                            className={`px-6 py-3 font-bold rounded-2xl flex items-center gap-2 ${
-                              receiverConfirmed
-                                ? 'bg-emerald-50 text-emerald-600 cursor-default'
-                                : 'bg-emerald-500 text-white hover:bg-emerald-600'
-                            }`}
-                          >
-                            <CheckCircle2 className="w-5 h-5" />
-                            {receiverConfirmed ? 'Sudah Konfirmasi' : 'Selesai'}
-                          </button>
-                        </div>
+                        ))}
+                        {historyMyClaims.map(claim => (
+                          <div key={`claim-${claim.id}`} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-start gap-4 md:gap-6 min-w-0">
+                              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shrink-0 bg-slate-100">
+                                {claim.food?.image ? <img src={claim.food.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><CheckCircle2 className="w-6 h-6 text-slate-300" /></div>}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-black px-3 py-1 rounded-full uppercase bg-emerald-50 text-emerald-600">Klaim Selesai</span>
+                                <h4 className="text-lg md:text-xl font-black text-slate-900 mt-2 truncate">{claim.food?.name || 'Makanan'}</h4>
+                                <p className="text-xs text-slate-400 truncate">{claim.portions} Porsi diterima</p>
+                              </div>
+                            </div>
+                            <CheckCircle2 className="w-6 h-6 text-emerald-500 shrink-0" />
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="text-center py-16 bg-white rounded-[2rem] border border-dashed border-slate-100">
+                        <Clock className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                        <p className="text-slate-400 font-bold text-sm">Belum ada riwayat.</p>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-100"><p className="text-slate-400 font-bold">Belum ada klaim aktif.</p></div>}
-            </div>
-          )}
+                    )
+                  )}
 
-          {activeTab === 'history' && (
-            <div className="space-y-8">
-              <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Riwayat</h3>
-              <div className="space-y-3">
-                {isDonor && historyFoods.map(food => (
-                  <div key={`food-${food.id}`} className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                      <div>
-                        <p className="font-black text-slate-900">{food.name}</p>
-                        <p className="text-xs text-slate-400">{food.portions} Porsi tersalurkan</p>
+                  {activeTab === 'impact' && isDonor && (
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center">
+                            <Leaf className="w-5 h-5" />
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Makanan Terselamatkan</span>
+                        </div>
+                        <div className="text-5xl md:text-6xl font-black text-slate-900">
+                          {Number(stats.foodSaved).toFixed(1)}
+                          <span className="text-xl md:text-2xl ml-2 text-emerald-500">kg</span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium mt-3 leading-relaxed">
+                          Berat total makanan yang tersalurkan lewat donasi kamu.
+                        </p>
+                      </div>
+                      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center">
+                            <HandHeart className="w-5 h-5" />
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Porsi Tersalurkan</span>
+                        </div>
+                        <div className="text-5xl md:text-6xl font-black text-slate-900">
+                          {stats.peopleHelped}
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium mt-3 leading-relaxed">
+                          Total porsi yang berhasil sampai ke penerima.
+                        </p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full">Donasi Selesai</span>
-                  </div>
-                ))}
-                {historyMyClaims.map(claim => (
-                  <div key={`claim-${claim.id}`} className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                      <div>
-                        <p className="font-black text-slate-900">{claim.food?.name || 'Makanan'}</p>
-                        <p className="text-xs text-slate-400">{claim.portions} Porsi diterima</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full">Klaim Selesai</span>
-                  </div>
-                ))}
-                {historyFoods.length === 0 && historyMyClaims.length === 0 && (
-                  <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-100"><p className="text-slate-400 font-bold">Belum ada riwayat.</p></div>
-                )}
-              </div>
-            </div>
-          )}
-          {activeTab === 'impact' && isDonor && (
-            <div className="space-y-10">
-              <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Jejak Kebaikan</h3>
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="bg-emerald-500 p-12 rounded-[4rem] text-white shadow-2xl shadow-emerald-500/20">
-                  <div className="text-7xl font-black">{Number(stats.foodSaved).toFixed(1)}<span className="text-2xl ml-2 text-emerald-200">kg</span></div>
-                  <div className="text-emerald-100 font-black uppercase tracking-widest text-[10px] mt-4">Makanan Terselamatkan</div>
+                  )}
                 </div>
-                <div className="bg-slate-900 p-12 rounded-[4rem] text-white shadow-2xl">
-                  <div className="text-7xl font-black">{stats.peopleHelped}</div>
-                  <div className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-4">Porsi Tersalurkan</div>
-                </div>
-              </div>
-            </div>
-          )}
+              </section>
+            );
+          })()}
         </div>
       </div>
       <AnimatePresence>
