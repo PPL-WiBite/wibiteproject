@@ -167,8 +167,11 @@ class FoodController extends Controller
     }
 
     /**
-     * Receiver mengonfirmasi penjemputan untuk claim miliknya.
-     * Food baru ditandai "completed" kalau semua claim-nya selesai dan seluruh porsi habis.
+     * Baik donor maupun receiver perlu konfirmasi "Selesai" sebelum claim benar-benar selesai.
+     * Receiver: konfirmasi makanan sudah diterima.
+     * Donor: konfirmasi makanan sudah diserahkan ke receiver.
+     * Claim dianggap "completed" kalau kedua pihak sudah konfirmasi.
+     * Food baru dianggap "completed" kalau semua claim-nya completed dan semua porsi habis.
      */
     public function completeClaim(Request $request): JsonResponse
     {
@@ -183,13 +186,14 @@ class FoodController extends Controller
             $claim = null;
 
             if (!empty($validated['claim_id'])) {
-                $claim = Claim::where('id', $validated['claim_id'])
-                    ->where('receiver_id', $user->id)
+                $claim = Claim::with('food')
+                    ->where('id', $validated['claim_id'])
                     ->lockForUpdate()
                     ->first();
             } elseif (!empty($validated['food_id'])) {
-                // Fallback lama: selesaikan claim aktif milik user pada food tsb
-                $claim = Claim::where('food_id', $validated['food_id'])
+                // Fallback lama: cari claim aktif milik user pada food tsb
+                $claim = Claim::with('food')
+                    ->where('food_id', $validated['food_id'])
                     ->where('receiver_id', $user->id)
                     ->where('status', 'active')
                     ->lockForUpdate()
@@ -200,9 +204,48 @@ class FoodController extends Controller
                 return response()->json(['error' => 'Claim tidak ditemukan.'], 404);
             }
 
-            $claim->status = 'completed';
+            $food = $claim->food;
+            if (!$food) {
+                return response()->json(['error' => 'Makanan tidak ditemukan.'], 404);
+            }
+
+            $isReceiver = $claim->receiver_id === $user->id;
+            $isDonor = $food->donor_id === $user->id;
+
+            if (!$isReceiver && !$isDonor && !$user->isAdmin()) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+
+            $role = null;
+            if ($isReceiver) {
+                if ($claim->receiver_completed_at) {
+                    return response()->json([
+                        'error' => 'Kamu sudah mengonfirmasi penerimaan sebelumnya.',
+                    ], 400);
+                }
+                $claim->receiver_completed_at = now();
+                $role = 'receiver';
+            } elseif ($isDonor) {
+                if ($claim->donor_completed_at) {
+                    return response()->json([
+                        'error' => 'Kamu sudah mengonfirmasi penyerahan sebelumnya.',
+                    ], 400);
+                }
+                $claim->donor_completed_at = now();
+                $role = 'donor';
+            } else {
+                // Admin bantu selesaikan manual dari dua sisi
+                $claim->receiver_completed_at = $claim->receiver_completed_at ?? now();
+                $claim->donor_completed_at = $claim->donor_completed_at ?? now();
+                $role = 'admin';
+            }
+
+            if ($claim->donor_completed_at && $claim->receiver_completed_at) {
+                $claim->status = 'completed';
+            }
             $claim->save();
 
+            // Update status food jika semua claim sudah selesai
             $food = Food::lockForUpdate()->findOrFail($claim->food_id);
 
             $hasActiveClaim = Claim::where('food_id', $food->id)
@@ -216,7 +259,8 @@ class FoodController extends Controller
 
             return response()->json([
                 'success' => true,
-                'claim' => $claim,
+                'role' => $role,
+                'claim' => $claim->fresh()->load(['food', 'receiver:id,name,role']),
                 'food' => [
                     'id' => $food->id,
                     'status' => $food->status,

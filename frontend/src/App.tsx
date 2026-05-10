@@ -47,7 +47,11 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
 
         {/* TENGAH: Nav menu (absolute, benar-benar rata tengah) */}
         <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center bg-slate-50/80 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-100 gap-1">
-          <Link to="/explore" className={navLinkClass('/explore')}>Cari Makanan</Link>
+          {user && (user.role === 'donor' || user.role === 'admin') ? (
+            <Link to="/donate" className={navLinkClass('/donate')}>Donor Makanan</Link>
+          ) : (
+            <Link to="/explore" className={navLinkClass('/explore')}>Cari Makanan</Link>
+          )}
           <Link to="/forum" className={navLinkClass('/forum')}>Forum</Link>
           <Link to="/guidelines" className={navLinkClass('/guidelines')}>Pedoman</Link>
         </div>
@@ -697,12 +701,20 @@ const DashboardPage = ({ user }: { user: User | null }) => {
   };
 
   const handleConfirmPickup = async (claimId: number) => {
-    if (!confirm('Konfirmasi bahwa makanan telah dijemput?')) return;
+    if (!confirm('Konfirmasi bahwa transaksi telah selesai?')) return;
     try {
-      await api.post('/claims/complete', { claim_id: claimId });
-      alert('Penjemputan berhasil dikonfirmasi!');
+      const res = await api.post('/claims/complete', { claim_id: claimId });
+      const claimStatus = res.data?.claim?.status;
+      if (claimStatus === 'completed') {
+        alert('Transaksi selesai. Terima kasih atas kontribusinya!');
+      } else {
+        alert('Konfirmasi berhasil. Menunggu pihak lain untuk menyelesaikan transaksi.');
+      }
       fetchDashboardData();
-    } catch (error) { console.error(error); }
+    } catch (error: any) {
+      alert(error?.response?.data?.error || 'Gagal mengonfirmasi.');
+      console.error(error);
+    }
   };
 
   const handleAddFood = async (formData: any) => {
@@ -740,7 +752,7 @@ const DashboardPage = ({ user }: { user: User | null }) => {
             {isDonor && <button onClick={() => setActiveTab('listings')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'listings' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><Heart className="w-5 h-5" /> Kelola Donasi</button>}
             <button onClick={() => setActiveTab('claims')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'claims' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><MapPin className="w-5 h-5" /> Klaim Aktif</button>
             <button onClick={() => setActiveTab('history')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'history' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><Clock className="w-5 h-5" /> Riwayat</button>
-            <button onClick={() => setActiveTab('impact')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'impact' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><TrendingUp className="w-5 h-5" /> Dampak</button>
+            {isDonor && <button onClick={() => setActiveTab('impact')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'impact' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><TrendingUp className="w-5 h-5" /> Dampak</button>}
           </nav>
           {isDonor && <button onClick={() => setIsAddingFood(true)} className="w-full bg-slate-900 text-white font-black py-6 rounded-[2.5rem] shadow-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3"><PlusCircle className="w-6 h-6 text-emerald-400" /> Donasi Makanan</button>}
         </div>
@@ -781,8 +793,11 @@ const DashboardPage = ({ user }: { user: User | null }) => {
                           <div className="mt-6 pt-6 border-t border-slate-100">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Penerima ({claimsForFood.length})</p>
                             <div className="space-y-3">
-                              {claimsForFood.map(claim => (
-                                <div key={claim.id} className="flex items-center justify-between gap-3 bg-slate-50/60 rounded-2xl px-4 py-3">
+                              {claimsForFood.map(claim => {
+                                const donorConfirmed = !!claim.donor_completed_at;
+                                const receiverConfirmed = !!claim.receiver_completed_at;
+                                return (
+                                <div key={claim.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/60 rounded-2xl px-4 py-3">
                                   <div className="flex items-center gap-3 min-w-0">
                                     <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center font-bold text-slate-600 text-sm border border-slate-100 shrink-0">
                                       {claim.receiver?.name?.[0] || 'P'}
@@ -790,21 +805,44 @@ const DashboardPage = ({ user }: { user: User | null }) => {
                                     <div className="min-w-0">
                                       <p className="text-sm font-black text-slate-900 truncate">{claim.receiver?.name || 'Penerima'}</p>
                                       <p className="text-xs text-slate-400">{claim.portions} porsi</p>
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${donorConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                          Donor {donorConfirmed ? 'OK' : 'menunggu'}
+                                        </span>
+                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${receiverConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                          Penerima {receiverConfirmed ? 'OK' : 'menunggu'}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
-                                  <button
-                                    onClick={() => setChatCtx({
-                                      claimId: claim.id,
-                                      foodName: food.name,
-                                      counterpartName: claim.receiver?.name || 'Penerima',
-                                      portions: claim.portions,
-                                    })}
-                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 text-xs shrink-0"
-                                  >
-                                    <MessageCircle className="w-4 h-4" /> Chat
-                                  </button>
+                                  <div className="flex gap-2 shrink-0">
+                                    <button
+                                      onClick={() => setChatCtx({
+                                        claimId: claim.id,
+                                        foodName: food.name,
+                                        counterpartName: claim.receiver?.name || 'Penerima',
+                                        portions: claim.portions,
+                                      })}
+                                      className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 text-xs"
+                                    >
+                                      <MessageCircle className="w-4 h-4" /> Chat
+                                    </button>
+                                    <button
+                                      onClick={() => handleConfirmPickup(claim.id)}
+                                      disabled={donorConfirmed}
+                                      className={`flex items-center gap-2 px-4 py-2 font-bold rounded-xl text-xs ${
+                                        donorConfirmed
+                                          ? 'bg-emerald-50 text-emerald-600 cursor-default'
+                                          : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                      }`}
+                                    >
+                                      <CheckCircle2 className="w-4 h-4" />
+                                      {donorConfirmed ? 'Sudah Konfirmasi' : 'Selesai'}
+                                    </button>
+                                  </div>
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -824,17 +862,32 @@ const DashboardPage = ({ user }: { user: User | null }) => {
                   {activeMyClaims.map((claim) => {
                     const food = claim.food || {};
                     const donorName = food.donor_name || 'Donatur';
+                    const donorConfirmed = !!claim.donor_completed_at;
+                    const receiverConfirmed = !!claim.receiver_completed_at;
+                    const statusLabel = receiverConfirmed && !donorConfirmed
+                      ? 'Menunggu Donor'
+                      : !receiverConfirmed && donorConfirmed
+                        ? 'Donor Konfirmasi, Giliranmu'
+                        : 'Diklaim';
                     return (
                       <div key={claim.id} className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="flex items-center gap-6 min-w-0">
                           <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0"><img src={food.image} className="w-full h-full object-cover" /></div>
                           <div className="min-w-0">
                             <span className="text-[10px] font-black px-3 py-1 rounded-full uppercase bg-amber-50 text-amber-500">
-                              Diklaim
+                              {statusLabel}
                             </span>
                             <h4 className="text-xl font-black text-slate-900 mt-2 truncate">{food.name}</h4>
                             <p className="text-xs text-slate-400 truncate">{claim.portions} Porsi &bull; {food.pickup_address}</p>
                             <p className="text-[10px] text-slate-400 mt-1">Dari: {donorName}</p>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${donorConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                Donor {donorConfirmed ? 'OK' : 'menunggu'}
+                              </span>
+                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${receiverConfirmed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                Penerima {receiverConfirmed ? 'OK' : 'menunggu'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <div className="flex gap-3 shrink-0">
@@ -851,9 +904,15 @@ const DashboardPage = ({ user }: { user: User | null }) => {
                           </button>
                           <button
                             onClick={() => handleConfirmPickup(claim.id)}
-                            className="px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 flex items-center gap-2"
+                            disabled={receiverConfirmed}
+                            className={`px-6 py-3 font-bold rounded-2xl flex items-center gap-2 ${
+                              receiverConfirmed
+                                ? 'bg-emerald-50 text-emerald-600 cursor-default'
+                                : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                            }`}
                           >
-                            <CheckCircle2 className="w-5 h-5" /> Selesai
+                            <CheckCircle2 className="w-5 h-5" />
+                            {receiverConfirmed ? 'Sudah Konfirmasi' : 'Selesai'}
                           </button>
                         </div>
                       </div>
@@ -898,7 +957,7 @@ const DashboardPage = ({ user }: { user: User | null }) => {
               </div>
             </div>
           )}
-          {activeTab === 'impact' && (
+          {activeTab === 'impact' && isDonor && (
             <div className="space-y-10">
               <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Jejak Kebaikan</h3>
               <div className="grid md:grid-cols-2 gap-8">
@@ -923,6 +982,290 @@ const DashboardPage = ({ user }: { user: User | null }) => {
           <ChatModal user={user} context={chatCtx} onClose={() => setChatCtx(null)} />
         )}
       </AnimatePresence>
+    </div>
+  );
+};
+
+// --- Donate Page (khusus donor/admin) ---
+const DonatePage = ({ user }: { user: User | null }) => {
+  const navigate = useNavigate();
+  const [myFoods, setMyFoods] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const today = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+  const emptyForm = {
+    name: '',
+    portions: 1,
+    pickup_address: '',
+    description: '',
+    expired_date: tomorrow,
+    weight_kg: 0.5,
+    category: 'Makanan Matang',
+  };
+  const [formData, setFormData] = useState(emptyForm);
+
+  useEffect(() => {
+    if (!user) return;
+    if (user.role !== 'donor' && user.role !== 'admin') {
+      navigate('/explore');
+      return;
+    }
+    fetchMyFoods();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const fetchMyFoods = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/food');
+      setMyFoods(res.data.filter((f: any) => f.donor_id === user?.id));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await api.post('/food', formData);
+      alert('Donasi berhasil ditambahkan.');
+      setFormData(emptyForm);
+      setShowForm(false);
+      fetchMyFoods();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Gagal menambahkan donasi.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Hapus donasi ini?')) return;
+    try {
+      await api.delete(`/food/${id}`);
+      fetchMyFoods();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (!user) return <AuthPage type="login" />;
+  if (user.role !== 'donor' && user.role !== 'admin') return null;
+
+  return (
+    <div className="pt-32 pb-20 px-4">
+      <div className="max-w-5xl mx-auto">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+          <div>
+            <span className="text-emerald-500 font-black uppercase tracking-widest text-[10px] bg-emerald-50 px-4 py-2 rounded-full">Mode Pendonor</span>
+            <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mt-4">Donor Makanan</h1>
+            <p className="text-slate-500 font-medium italic text-sm mt-2">Bagikan makanan berlebihmu ke sesama. Setiap porsi berarti.</p>
+          </div>
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="px-6 py-4 bg-emerald-500 text-white font-black rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all flex items-center gap-2 uppercase text-xs tracking-widest"
+          >
+            <PlusCircle className="w-5 h-5" /> {showForm ? 'Tutup Form' : 'Tambah Donasi'}
+          </button>
+        </div>
+
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 md:p-10 mb-12"
+          >
+            <h2 className="text-2xl font-black text-slate-900 mb-6">Form Donasi Makanan</h2>
+            <form onSubmit={handleSubmit} className="grid gap-6">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                  Nama Makanan
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: Nasi Kotak Ayam Bakar"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-lg text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                  Jumlah Makanan / Porsi
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={formData.portions}
+                  onChange={(e) =>
+                    setFormData({ ...formData, portions: Math.max(1, parseInt(e.target.value) || 1) })
+                  }
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-lg text-slate-900"
+                />
+                <p className="text-xs text-slate-400 mt-2">Penerima bisa klaim sebagian porsi saja.</p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                  Lokasi Penjemputan
+                </label>
+                <textarea
+                  required
+                  placeholder="Alamat lengkap untuk penjemputan..."
+                  value={formData.pickup_address}
+                  onChange={(e) => setFormData({ ...formData, pickup_address: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 h-28 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                  Keterangan
+                </label>
+                <textarea
+                  placeholder="Catatan tambahan, kondisi makanan, instruksi penjemputan..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 h-28 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                  Kapan Makanan Tidak Layak Lagi / Basi
+                </label>
+                <input
+                  type="date"
+                  required
+                  min={today}
+                  value={formData.expired_date}
+                  onChange={(e) => setFormData({ ...formData, expired_date: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-900"
+                />
+                <p className="text-xs text-slate-400 mt-2">Tanggal estimasi makanan masih aman dikonsumsi.</p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(emptyForm);
+                    setShowForm(false);
+                  }}
+                  className="px-6 py-4 bg-slate-50 text-slate-600 font-black rounded-2xl hover:bg-slate-100 uppercase text-xs tracking-widest"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 disabled:opacity-60 uppercase text-xs tracking-widest"
+                >
+                  {submitting ? 'Menyimpan...' : 'Donasikan Sekarang'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">Donasi Saya</h2>
+          {loading ? (
+            <div className="h-40 bg-slate-100 animate-pulse rounded-3xl" />
+          ) : myFoods.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-[2.5rem] border border-dashed border-slate-100">
+              <Utensils className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+              <p className="text-slate-400 font-bold text-sm">Belum ada donasi. Mulai dari tombol di atas.</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-6">
+              {myFoods.map((food) => {
+                const total = Number(food.portions || 0);
+                const claimed = Number(food.claimed_portions || 0);
+                const remaining =
+                  typeof food.remaining_portions === 'number'
+                    ? food.remaining_portions
+                    : Math.max(0, total - claimed);
+                const statusLabel =
+                  food.status === 'completed'
+                    ? 'Selesai'
+                    : remaining === 0
+                      ? 'Porsi Habis'
+                      : claimed > 0
+                        ? 'Tersisa Sebagian'
+                        : 'Tersedia';
+                const statusClass =
+                  food.status === 'completed'
+                    ? 'bg-slate-100 text-slate-500'
+                    : remaining === 0
+                      ? 'bg-amber-50 text-amber-600'
+                      : claimed > 0
+                        ? 'bg-amber-50 text-amber-600'
+                        : 'bg-emerald-50 text-emerald-600';
+                return (
+                  <div key={food.id} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${statusClass}`}>
+                          {statusLabel}
+                        </span>
+                        <h3 className="text-lg font-black text-slate-900 mt-3 truncate">{food.name}</h3>
+                      </div>
+                      <button
+                        onClick={() => handleDelete(food.id)}
+                        className="p-2 bg-slate-50 text-slate-300 rounded-xl hover:bg-red-50 hover:text-red-500 shrink-0"
+                        aria-label="Hapus"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 mt-4">
+                      <div className="bg-slate-50 rounded-xl p-3 text-center">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total</p>
+                        <p className="text-lg font-black text-slate-900">{total}</p>
+                      </div>
+                      <div className="bg-amber-50 rounded-xl p-3 text-center">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">Diklaim</p>
+                        <p className="text-lg font-black text-amber-600">{claimed}</p>
+                      </div>
+                      <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Sisa</p>
+                        <p className="text-lg font-black text-emerald-600">{remaining}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2 mt-4 text-xs text-slate-500">
+                      <MapPin className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{food.pickup_address}</span>
+                    </div>
+                    {food.description && (
+                      <div className="flex items-start gap-2 mt-2 text-xs text-slate-500">
+                        <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                        <span className="line-clamp-2">{food.description}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                      <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span>Basi setelah: <strong className="text-slate-700">{food.expired_date}</strong></span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -1252,6 +1595,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/explore" element={<ExplorePage user={user} />} />
+            <Route path="/donate" element={<DonatePage user={user} />} />
             <Route path="/forum" element={<ForumPage user={user} />} />
             <Route path="/guidelines" element={<GuidelinePage />} />
             <Route path="/dashboard" element={<DashboardPage user={user} />} />

@@ -16,12 +16,16 @@ class Claim extends Model
         'receiver_id',
         'portions',
         'status',
+        'donor_completed_at',
+        'receiver_completed_at',
     ];
 
     protected function casts(): array
     {
         return [
             'portions' => 'integer',
+            'donor_completed_at' => 'datetime',
+            'receiver_completed_at' => 'datetime',
         ];
     }
 
@@ -38,5 +42,10 @@ class Claim extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class, 'claim_id');
+    }
+
+    public function isFullyConfirmed(): bool
+    {
+        return !is_null($this->donor_completed_at) && !is_null($this->receiver_completed_at);
     }
 }
