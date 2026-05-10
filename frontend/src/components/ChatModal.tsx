@@ -46,8 +46,14 @@ export default function ChatModal({ user, context, onClose }: Props) {
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 5000);
-    return () => clearInterval(interval);
+    // Polling cepat supaya chat terasa 2 arah untuk donor dan receiver.
+    const interval = setInterval(fetchMessages, 2500);
+    const onFocus = () => fetchMessages();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [context.claimId]);
 

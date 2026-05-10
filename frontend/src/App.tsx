@@ -5,7 +5,8 @@ import {
   Heart, Search, LayoutDashboard, LogOut, MapPin, ChevronRight, TrendingUp,
   Globe, Leaf, Clock, Info, X, Star, CheckCircle2, Lock, Mail,
   User as UserIcon, MessageCircle, LogIn, Trash2, Pencil, PlusCircle,
-  HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon
+  HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon,
+  Menu, Phone, Shield, FileText, Sparkles
 } from 'lucide-react';
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
@@ -16,7 +17,11 @@ import { ToastProvider, useToast } from '@/components/Toast';
 // --- Navbar ---
 const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+
+  // Backdrop (blur + warna) hanya muncul di halaman login/register.
+  const showBackdrop = location.pathname === '/login' || location.pathname === '/register';
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
@@ -24,20 +29,43 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Tutup menu mobile ketika pindah halaman
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
   const navLinkClass = (path: string) =>
-    `px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+    `px-4 lg:px-6 py-2.5 rounded-xl text-[11px] lg:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
       location.pathname === path
         ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/20'
         : 'text-slate-500 hover:bg-white hover:text-emerald-500'
     }`;
 
+  const navBg = showBackdrop
+    ? (isScrolled
+        ? 'bg-white/80 backdrop-blur-md shadow-sm'
+        : 'bg-white/70 backdrop-blur-md')
+    : (isScrolled
+        ? 'bg-white/90 backdrop-blur-md shadow-sm'
+        : 'bg-transparent');
+
+  const primaryLink = user && (user.role === 'donor' || user.role === 'admin')
+    ? { to: '/donate', label: 'Donor Makanan' }
+    : { to: '/explore', label: 'Cari Makanan' };
+
+  const mobileLinks = [
+    primaryLink,
+    { to: '/forum', label: 'Forum' },
+    { to: '/guidelines', label: 'Pedoman' },
+  ];
+
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-5'
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${navBg} ${
+        isScrolled ? 'py-3' : 'py-4 md:py-5'
       }`}
     >
-      <div className="w-full px-6 lg:px-10 relative flex items-center justify-between">
+      <div className="w-full px-4 sm:px-6 lg:px-10 flex items-center justify-between gap-3">
         {/* KIRI: Logo */}
         <Link to="/" className="flex items-center gap-2 flex-shrink-0">
           <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-emerald-500/20">
@@ -46,25 +74,23 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
           <span className="text-xl font-bold text-slate-900 tracking-tight">wibite</span>
         </Link>
 
-        {/* TENGAH: Nav menu (absolute, benar-benar rata tengah) */}
-        <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center bg-slate-50/80 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-100 gap-1">
-          {user && (user.role === 'donor' || user.role === 'admin') ? (
-            <Link to="/donate" className={navLinkClass('/donate')}>Donor Makanan</Link>
-          ) : (
-            <Link to="/explore" className={navLinkClass('/explore')}>Cari Makanan</Link>
-          )}
-          <Link to="/forum" className={navLinkClass('/forum')}>Forum</Link>
-          <Link to="/guidelines" className={navLinkClass('/guidelines')}>Pedoman</Link>
+        {/* TENGAH: Nav menu (desktop only) */}
+        <div className="hidden md:flex flex-1 justify-center">
+          <div className="flex items-center bg-slate-50/80 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-100 gap-1">
+            <Link to={primaryLink.to} className={navLinkClass(primaryLink.to)}>{primaryLink.label}</Link>
+            <Link to="/forum" className={navLinkClass('/forum')}>Forum</Link>
+            <Link to="/guidelines" className={navLinkClass('/guidelines')}>Pedoman</Link>
+          </div>
         </div>
 
         {/* KANAN: Auth / User menu */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {user ? (
             <>
               {user.role === 'admin' && (
                 <Link
                   to="/admin"
-                  className="text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-2 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                  className="hidden sm:inline-flex text-[11px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-2 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-colors"
                 >
                   Admin
                 </Link>
@@ -85,29 +111,89 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
               </Link>
               <button
                 onClick={onLogout}
-                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-red-500 bg-slate-50 hover:bg-red-50 px-3 py-2 rounded-xl transition-colors"
+                className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-slate-600 hover:text-red-500 bg-slate-50 hover:bg-red-50 px-3 py-2 rounded-xl transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" /> Keluar
+              </button>
+              <button
+                onClick={onLogout}
+                className="sm:hidden p-2.5 bg-slate-50 hover:bg-red-50 text-slate-600 hover:text-red-500 rounded-xl transition-colors"
+                title="Keluar"
+              >
+                <LogOut className="w-4 h-4" />
               </button>
             </>
           ) : (
             <>
               <Link
                 to="/login"
-                className="text-xs font-black uppercase tracking-widest text-slate-600 px-4 py-2.5 hover:text-emerald-500 transition-colors"
+                className="hidden sm:inline-flex text-[11px] font-black uppercase tracking-widest text-slate-600 px-4 py-2.5 hover:text-emerald-500 transition-colors"
               >
                 Masuk
               </Link>
               <Link
                 to="/register"
-                className="text-xs font-black uppercase tracking-widest bg-emerald-500 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                className="text-[11px] font-black uppercase tracking-widest bg-emerald-500 text-white px-4 sm:px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
               >
                 Daftar
               </Link>
             </>
           )}
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileOpen((v) => !v)}
+            className="md:hidden p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
+            aria-label="Menu"
+          >
+            {mobileOpen ? <X className="w-4 h-4 text-slate-600" /> : <Menu className="w-4 h-4 text-slate-600" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile menu panel */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="md:hidden px-4 sm:px-6 pb-4 pt-2"
+          >
+            <div className="bg-white border border-slate-100 rounded-2xl shadow-lg p-2 flex flex-col gap-1">
+              {mobileLinks.map((l) => (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest ${
+                    location.pathname === l.to
+                      ? 'bg-emerald-500 text-white'
+                      : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {l.label}
+                </Link>
+              ))}
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 mt-1"
+                >
+                  Admin Panel
+                </Link>
+              )}
+              {!user && (
+                <Link
+                  to="/login"
+                  className="px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50"
+                >
+                  Masuk
+                </Link>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 };
@@ -172,6 +258,166 @@ const LandingPage = () => (
   </div>
 );
 
+// --- Info Pages (Tentang / Privasi / Syarat / Kontak) ---
+const InfoPageLayout = ({
+  eyebrow,
+  title,
+  subtitle,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) => (
+  <div className="pt-28 md:pt-32 pb-16 md:pb-20 px-4">
+    <div className="max-w-3xl mx-auto">
+      <div className="text-center mb-10 md:mb-14">
+        <span className="inline-block text-emerald-500 font-black uppercase tracking-widest text-[10px] bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100">
+          {eyebrow}
+        </span>
+        <h1 className="text-3xl md:text-5xl font-black text-slate-900 mt-5 tracking-tight">{title}</h1>
+        <p className="text-slate-500 mt-3 font-medium italic text-sm md:text-base">{subtitle}</p>
+      </div>
+      <div className="bg-white p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] border border-slate-50 shadow-sm space-y-6 text-slate-600 text-sm md:text-base leading-relaxed font-medium">
+        {children}
+      </div>
+    </div>
+  </div>
+);
+
+const AboutPage = () => (
+  <InfoPageLayout
+    eyebrow="Tentang WiBite"
+    title="Menghubungkan Kebaikan, Satu Porsi dalam Satu Waktu."
+    subtitle="Platform redistribusi makanan berlebih yang mendukung SDGs 12."
+  >
+    <p>
+      <strong className="text-slate-900">WiBite</strong> adalah platform komunitas yang menghubungkan
+      pendonor makanan berlebih dengan penerima yang membutuhkan. Kami percaya bahwa makanan
+      layak konsumsi tidak seharusnya berakhir di tempat sampah sementara banyak orang di sekitar
+      kita masih kekurangan.
+    </p>
+    <p>
+      Dengan mendukung <strong className="text-slate-900">Sustainable Development Goals (SDGs) 12: Konsumsi dan
+      Produksi yang Bertanggung Jawab</strong>, WiBite menghadirkan cara mudah untuk berbagi:
+      pendonor mempublikasikan makanan berlebih, penerima mengklaim, dan keduanya berkoordinasi
+      lewat chat untuk penjemputan.
+    </p>
+    <div className="grid md:grid-cols-3 gap-4 pt-2">
+      <div className="p-5 bg-emerald-50 rounded-2xl">
+        <Leaf className="w-6 h-6 text-emerald-500 mb-2" />
+        <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Misi</p>
+        <p className="text-sm text-emerald-800 mt-1">Mengurangi food waste di Indonesia.</p>
+      </div>
+      <div className="p-5 bg-amber-50 rounded-2xl">
+        <HandHeart className="w-6 h-6 text-amber-500 mb-2" />
+        <p className="text-xs font-black uppercase tracking-widest text-amber-700">Nilai</p>
+        <p className="text-sm text-amber-800 mt-1">Kebaikan, transparansi, dan martabat.</p>
+      </div>
+      <div className="p-5 bg-indigo-50 rounded-2xl">
+        <Sparkles className="w-6 h-6 text-indigo-500 mb-2" />
+        <p className="text-xs font-black uppercase tracking-widest text-indigo-700">Visi</p>
+        <p className="text-sm text-indigo-800 mt-1">Komunitas yang saling menjaga lewat pangan.</p>
+      </div>
+    </div>
+  </InfoPageLayout>
+);
+
+const PrivacyPage = () => (
+  <InfoPageLayout
+    eyebrow="Kebijakan Privasi"
+    title="Privasi Kamu, Prioritas Kami."
+    subtitle="Bagaimana kami mengumpulkan, menyimpan, dan menggunakan data kamu."
+  >
+    <h3 className="text-lg font-black text-slate-900">1. Data yang Kami Kumpulkan</h3>
+    <p>Kami menyimpan data akun (nama, email, telepon, alamat) yang kamu isi saat mendaftar atau mengelola profil, serta data aktivitas seperti donasi, klaim, dan pesan.</p>
+    <h3 className="text-lg font-black text-slate-900">2. Penggunaan Data</h3>
+    <p>Data digunakan untuk menjalankan fitur platform (otentikasi, klaim makanan, chat koordinasi) dan untuk meningkatkan kualitas layanan. Kami tidak menjual data kamu ke pihak ketiga.</p>
+    <h3 className="text-lg font-black text-slate-900">3. Keamanan</h3>
+    <p>Kata sandi disimpan dalam bentuk hash. Token otentikasi hanya berlaku pada sesi kamu dan bisa dicabut kapan saja lewat tombol "Keluar".</p>
+    <h3 className="text-lg font-black text-slate-900">4. Hak Kamu</h3>
+    <p>Kamu bisa mengubah atau menghapus data profil kapan saja dari halaman Profil. Untuk penghapusan akun, hubungi kami lewat halaman Kontak.</p>
+  </InfoPageLayout>
+);
+
+const TermsPage = () => (
+  <InfoPageLayout
+    eyebrow="Syarat & Ketentuan"
+    title="Aturan Main di WiBite."
+    subtitle="Dengan menggunakan layanan, kamu menyetujui ketentuan berikut."
+  >
+    <h3 className="text-lg font-black text-slate-900">1. Penggunaan Layanan</h3>
+    <p>WiBite hanya boleh digunakan untuk kegiatan redistribusi makanan yang sah dan nir-laba. Penjualan, penipuan, atau penyalahgunaan platform akan berakibat pada penangguhan akun.</p>
+    <h3 className="text-lg font-black text-slate-900">2. Kewajiban Pendonor</h3>
+    <p>Pendonor bertanggung jawab memastikan makanan yang didonasikan masih layak konsumsi sesuai pedoman keamanan. Cantumkan informasi yang jujur tentang porsi, lokasi, dan batas waktu.</p>
+    <h3 className="text-lg font-black text-slate-900">3. Kewajiban Penerima</h3>
+    <p>Penerima wajib menjemput makanan sesuai koordinasi dengan pendonor dan menyelesaikan klaim melalui tombol "Selesai" setelah makanan diterima.</p>
+    <h3 className="text-lg font-black text-slate-900">4. Batasan Tanggung Jawab</h3>
+    <p>WiBite memfasilitasi pertemuan antara pendonor dan penerima, namun tidak bertanggung jawab atas kondisi makanan pasca penjemputan. Gunakan akal sehat dan periksa kelayakan sebelum dikonsumsi.</p>
+    <h3 className="text-lg font-black text-slate-900">5. Perubahan Ketentuan</h3>
+    <p>Ketentuan dapat diperbarui sewaktu-waktu. Perubahan signifikan akan diumumkan di platform.</p>
+  </InfoPageLayout>
+);
+
+const ContactPage = () => (
+  <InfoPageLayout
+    eyebrow="Kontak"
+    title="Mari Ngobrol."
+    subtitle="Ada pertanyaan, masukan, atau laporan? Kami siap mendengar."
+  >
+    <div className="grid md:grid-cols-2 gap-4">
+      <a
+        href="mailto:hello@wibite.com"
+        className="flex items-start gap-4 p-5 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-colors"
+      >
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0">
+          <MailIcon className="w-5 h-5 text-emerald-500" />
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Email</p>
+          <p className="text-sm font-black text-emerald-900 break-all">hello@wibite.com</p>
+        </div>
+      </a>
+      <a
+        href="tel:+622150000000"
+        className="flex items-start gap-4 p-5 bg-amber-50 rounded-2xl hover:bg-amber-100 transition-colors"
+      >
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0">
+          <Phone className="w-5 h-5 text-amber-500" />
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Telepon</p>
+          <p className="text-sm font-black text-amber-900">+62 21 5000 0000</p>
+        </div>
+      </a>
+      <div className="flex items-start gap-4 p-5 bg-indigo-50 rounded-2xl">
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0">
+          <MapPin className="w-5 h-5 text-indigo-500" />
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Alamat</p>
+          <p className="text-sm font-black text-indigo-900">Jakarta, Indonesia</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-4 p-5 bg-slate-50 rounded-2xl">
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0">
+          <MessageCircle className="w-5 h-5 text-slate-500" />
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">Komunitas</p>
+          <Link to="/forum" className="text-sm font-black text-slate-900 hover:text-emerald-500">
+            Buka Forum
+          </Link>
+        </div>
+      </div>
+    </div>
+    <p className="text-xs text-slate-400 pt-2">
+      Respons email rata-rata dalam 1-2 hari kerja. Untuk laporan penyalahgunaan, sertakan bukti tangkapan layar.
+    </p>
+  </InfoPageLayout>
+);
+
 // --- Guideline Page ---
 const GuidelinePage = () => {
   const guidelines = [
@@ -179,7 +425,7 @@ const GuidelinePage = () => {
     { title: "Tips Pengemasan", icon: "\u{1F4E6}", items: ["Gunakan wadah ramah lingkungan jika memungkinkan.", "Pastikan wadah tertutup rapat (leak-proof).", "Sertakan label tanggal produksi dan estimasi basi.", "Pisahkan makanan basah dan kering."] }
   ];
   return (
-    <div className="pt-32 pb-20 px-4 relative">
+    <div className="pt-28 md:pt-32 pb-12 md:pb-20 px-4 relative">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-16">
           <span className="text-emerald-500 font-black uppercase tracking-widest text-[10px] bg-emerald-50 px-4 py-2 rounded-full">Standar Keamanan</span>
@@ -274,7 +520,7 @@ const ExplorePage = ({ user }: { user: User | null }) => {
   );
 
   return (
-    <div className="pt-32 pb-20 px-4 relative">
+    <div className="pt-28 md:pt-32 pb-12 md:pb-20 px-4 relative">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
           <div>
@@ -712,11 +958,11 @@ const DashboardPage = ({ user }: { user: User | null }) => {
   };
 
   return (
-    <div className="pt-32 pb-20 px-4 max-w-7xl mx-auto">
-      <div className="grid lg:grid-cols-4 gap-12">
-        <div className="space-y-6">
-          <div className="bg-white p-10 rounded-[3.5rem] shadow-sm border border-slate-50">
-            <div className="w-24 h-24 bg-emerald-500 rounded-[2rem] flex items-center justify-center text-white text-4xl font-black mb-8 shadow-2xl shadow-emerald-500/20">{user.name?.[0] || 'U'}</div>
+    <div className="pt-28 md:pt-32 pb-12 md:pb-20 px-4 max-w-7xl mx-auto">
+      <div className="grid lg:grid-cols-4 gap-6 lg:gap-12">
+        <div className="space-y-4 md:space-y-6">
+          <div className="bg-white p-6 md:p-10 rounded-[2.5rem] md:rounded-[3.5rem] shadow-sm border border-slate-50">
+            <div className="w-16 h-16 md:w-24 md:h-24 bg-emerald-500 rounded-2xl md:rounded-[2rem] flex items-center justify-center text-white text-2xl md:text-4xl font-black mb-5 md:mb-8 shadow-2xl shadow-emerald-500/20">{user.name?.[0] || 'U'}</div>
             <h2 className="text-2xl font-black text-slate-900">{user.name}</h2>
             <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.2em] mt-3 bg-emerald-50 px-3 py-1 rounded-full inline-block">{user.role}</p>
           </div>
@@ -1320,7 +1566,7 @@ const DonatePage = ({ user }: { user: User | null }) => {
     : null;
 
   return (
-    <div className="pt-32 pb-20 px-4">
+    <div className="pt-28 md:pt-32 pb-12 md:pb-20 px-4">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
           <div>
@@ -1603,7 +1849,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
   const canSwitchRole = user.role === 'donor' || user.role === 'receiver';
 
   return (
-    <div className="pt-32 pb-20 px-4">
+    <div className="pt-28 md:pt-32 pb-12 md:pb-20 px-4">
       <div className="max-w-2xl mx-auto space-y-8">
         <div>
           <h1 className="text-4xl font-black text-slate-900 mb-2">Profil Saya</h1>
@@ -1756,7 +2002,7 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
   };
 
   return (
-    <div className="pt-32 pb-20 px-4 max-w-7xl mx-auto">
+    <div className="pt-28 md:pt-32 pb-12 md:pb-20 px-4 max-w-7xl mx-auto">
       <h1 className="text-4xl font-black text-slate-900 mb-12">Admin Panel</h1>
       <div className="grid lg:grid-cols-2 gap-12">
         <div>
@@ -1843,6 +2089,10 @@ const App = () => {
             <Route path="/admin" element={<AdminDashboard user={user} />} />
             <Route path="/login" element={<AuthPage type="login" />} />
             <Route path="/register" element={<AuthPage type="register" />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
           </Routes>
         </main>
         <footer className="bg-white border-t border-slate-100 mt-auto">
@@ -1887,10 +2137,26 @@ const App = () => {
             <div>
               <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400 mb-5">Informasi</h4>
               <ul className="space-y-3">
-                <li><a href="#" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Tentang Kami</a></li>
-                <li><a href="#" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Kebijakan Privasi</a></li>
-                <li><a href="#" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Syarat & Ketentuan</a></li>
-                <li><a href="#" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Kontak</a></li>
+                <li>
+                  <Link to="/about" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                    <Info className="w-3.5 h-3.5" /> Tentang Kami
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/privacy" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5" /> Kebijakan Privasi
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/terms" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5" /> Syarat & Ketentuan
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/contact" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5" /> Kontak
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>
