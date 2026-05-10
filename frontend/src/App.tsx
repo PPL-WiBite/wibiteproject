@@ -11,6 +11,7 @@ import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
 import ForumPage from '@/components/Forum';
 import ChatModal from '@/components/ChatModal';
+import { ToastProvider, useToast } from '@/components/Toast';
 
 // --- Navbar ---
 const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
@@ -214,6 +215,7 @@ const getRemaining = (food: any): number => {
 };
 
 const ExplorePage = ({ user }: { user: User | null }) => {
+  const toast = useToast();
   const [foods, setFoods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -248,18 +250,18 @@ const ExplorePage = ({ user }: { user: User | null }) => {
   }, [selectedFood]);
 
   const handleClaim = async (foodId: number, portions: number) => {
-    if (!user) return alert('Silakan masuk untuk mengklaim makanan.');
+    if (!user) return toast.info('Silakan masuk untuk mengklaim makanan.');
     if (portions < 1) return;
     setClaiming(true);
     try {
       await api.post('/claim', { food_id: foodId, portions });
-      alert(
+      toast.success(
         `Klaim berhasil untuk ${portions} porsi. Koordinasikan penjemputan lewat chat di Dashboard.`,
       );
       setSelectedFood(null);
       fetchFood();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Gagal mengklaim makanan.');
+      toast.error(error.response?.data?.error || 'Gagal mengklaim makanan.');
     } finally {
       setClaiming(false);
     }
@@ -627,6 +629,7 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
 
 // --- Dashboard Page ---
 const DashboardPage = ({ user }: { user: User | null }) => {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'listings' | 'claims' | 'history' | 'impact'>('listings');
   const [foods, setFoods] = useState<any[]>([]);
   const [myClaims, setMyClaims] = useState<any[]>([]);
@@ -706,13 +709,13 @@ const DashboardPage = ({ user }: { user: User | null }) => {
       const res = await api.post('/claims/complete', { claim_id: claimId });
       const claimStatus = res.data?.claim?.status;
       if (claimStatus === 'completed') {
-        alert('Transaksi selesai. Terima kasih atas kontribusinya!');
+        toast.success('Transaksi selesai. Terima kasih atas kontribusinya!');
       } else {
-        alert('Konfirmasi berhasil. Menunggu pihak lain untuk menyelesaikan transaksi.');
+        toast.info('Konfirmasi berhasil. Menunggu pihak lain untuk menyelesaikan transaksi.');
       }
       fetchDashboardData();
     } catch (error: any) {
-      alert(error?.response?.data?.error || 'Gagal mengonfirmasi.');
+      toast.error(error?.response?.data?.error || 'Gagal mengonfirmasi.');
       console.error(error);
     }
   };
@@ -987,25 +990,279 @@ const DashboardPage = ({ user }: { user: User | null }) => {
 };
 
 // --- Donate Page (khusus donor/admin) ---
+interface FoodFormData {
+  name: string;
+  portions: number;
+  pickup_address: string;
+  description: string;
+  expired_at: string; // datetime-local value: YYYY-MM-DDTHH:mm
+  weight_kg: number;
+  category: string;
+  image_file: File | null;
+  current_image?: string | null;
+}
+
+const toDatetimeLocal = (value: string | null | undefined): string => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const formatExpiredLabel = (food: any): string => {
+  if (food?.expired_at) {
+    const d = new Date(food.expired_at);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+  }
+  return food?.expired_date || '-';
+};
+
+const FOOD_CATEGORIES = ['Makanan Matang', 'Bahan Baku', 'Roti & Kue', 'Buah & Sayur', 'Lainnya'];
+
+const buildFoodFormData = (data: FoodFormData): FormData => {
+  const fd = new FormData();
+  fd.append('name', data.name);
+  fd.append('portions', String(data.portions));
+  fd.append('weight_kg', String(data.weight_kg));
+  fd.append('pickup_address', data.pickup_address);
+  fd.append('description', data.description);
+  fd.append('category', data.category);
+  if (data.expired_at) {
+    const iso = new Date(data.expired_at).toISOString();
+    fd.append('expired_at', iso);
+    fd.append('expired_date', data.expired_at.replace('T', ' '));
+  }
+  if (data.image_file) fd.append('image_file', data.image_file);
+  return fd;
+};
+
+const FoodForm = ({
+  initialData,
+  submitLabel,
+  submitting,
+  onCancel,
+  onSubmit,
+  isEdit,
+}: {
+  initialData: FoodFormData;
+  submitLabel: string;
+  submitting: boolean;
+  onCancel: () => void;
+  onSubmit: (data: FoodFormData) => void;
+  isEdit?: boolean;
+}) => {
+  const [formData, setFormData] = useState<FoodFormData>(initialData);
+  const [preview, setPreview] = useState<string | null>(initialData.current_image || null);
+  const toast = useToast();
+
+  useEffect(() => {
+    setFormData(initialData);
+    setPreview(initialData.current_image || null);
+  }, [initialData]);
+
+  const minDatetime = (() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  })();
+
+  const handleFile = (file: File | null) => {
+    if (!file) {
+      setFormData({ ...formData, image_file: null });
+      setPreview(initialData.current_image || null);
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error('Ukuran gambar maksimal 4 MB.');
+      return;
+    }
+    setFormData({ ...formData, image_file: file });
+    const reader = new FileReader();
+    reader.onload = () => setPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.expired_at) {
+      toast.error('Isi tanggal dan jam kadaluarsa.');
+      return;
+    }
+    onSubmit(formData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-6">
+      <div>
+        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Nama Makanan</label>
+        <input
+          type="text"
+          required
+          placeholder="Contoh: Nasi Kotak Ayam Bakar"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-lg text-slate-900"
+        />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Jumlah Porsi</label>
+          <input
+            type="number"
+            min={1}
+            required
+            value={formData.portions}
+            onChange={(e) => setFormData({ ...formData, portions: Math.max(1, parseInt(e.target.value) || 1) })}
+            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-lg text-slate-900"
+          />
+          <p className="text-xs text-slate-400 mt-2">Penerima bisa klaim sebagian porsi.</p>
+        </div>
+        <div>
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Berat (kg)</label>
+          <input
+            type="number"
+            step={0.1}
+            min={0}
+            value={formData.weight_kg}
+            onChange={(e) => setFormData({ ...formData, weight_kg: parseFloat(e.target.value) || 0 })}
+            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-lg text-slate-900"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Kategori</label>
+        <div className="flex flex-wrap gap-2">
+          {FOOD_CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setFormData({ ...formData, category: c })}
+              className={`px-4 py-2 rounded-xl text-xs font-black border transition-all ${
+                formData.category === c
+                  ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                  : 'bg-white border-slate-100 text-slate-500 hover:border-emerald-300 hover:text-emerald-600'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Lokasi Penjemputan</label>
+        <textarea
+          required
+          placeholder="Alamat lengkap untuk penjemputan..."
+          value={formData.pickup_address}
+          onChange={(e) => setFormData({ ...formData, pickup_address: e.target.value })}
+          className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-900"
+        />
+      </div>
+
+      <div>
+        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Keterangan</label>
+        <textarea
+          placeholder="Catatan, kondisi makanan, instruksi penjemputan..."
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-900"
+        />
+      </div>
+
+      <div>
+        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+          Kapan Makanan Tidak Layak Lagi / Basi (Tanggal + Jam)
+        </label>
+        <input
+          type="datetime-local"
+          required
+          min={minDatetime}
+          value={formData.expired_at}
+          onChange={(e) => setFormData({ ...formData, expired_at: e.target.value })}
+          className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-900"
+        />
+        <p className="text-xs text-slate-400 mt-2">Estimasi waktu makanan masih aman dikonsumsi.</p>
+      </div>
+
+      <div>
+        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Foto Makanan</label>
+        <div className="flex items-center gap-4">
+          <div className="w-24 h-24 rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 shrink-0 flex items-center justify-center">
+            {preview ? (
+              <img src={preview} alt="preview" className="w-full h-full object-cover" />
+            ) : (
+              <Utensils className="w-8 h-8 text-slate-300" />
+            )}
+          </div>
+          <div className="flex-1">
+            <label className="block">
+              <span className="sr-only">Pilih foto</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFile(e.target.files?.[0] || null)}
+                className="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100 cursor-pointer"
+              />
+            </label>
+            <p className="text-xs text-slate-400 mt-2">
+              {isEdit ? 'Kosongkan untuk mempertahankan foto lama.' : 'Opsional, maks 4 MB.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3 pt-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-6 py-4 bg-slate-50 text-slate-600 font-black rounded-2xl hover:bg-slate-100 uppercase text-xs tracking-widest"
+        >
+          Batal
+        </button>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="flex-1 bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 disabled:opacity-60 uppercase text-xs tracking-widest"
+        >
+          {submitting ? 'Menyimpan...' : submitLabel}
+        </button>
+      </div>
+    </form>
+  );
+};
+
 const DonatePage = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [myFoods, setMyFoods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const today = new Date().toISOString().split('T')[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const [editingFood, setEditingFood] = useState<any>(null);
 
-  const emptyForm = {
+  const emptyForm: FoodFormData = {
     name: '',
     portions: 1,
     pickup_address: '',
     description: '',
-    expired_date: tomorrow,
+    expired_at: '',
     weight_kg: 0.5,
     category: 'Makanan Matang',
+    image_file: null,
+    current_image: null,
   };
-  const [formData, setFormData] = useState(emptyForm);
 
   useEffect(() => {
     if (!user) return;
@@ -1029,18 +1286,37 @@ const DonatePage = ({ user }: { user: User | null }) => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async (data: FoodFormData) => {
     if (submitting) return;
     setSubmitting(true);
     try {
-      await api.post('/food', formData);
-      alert('Donasi berhasil ditambahkan.');
-      setFormData(emptyForm);
+      await api.post('/food', buildFoodFormData(data), {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success('Donasi berhasil ditambahkan.');
       setShowForm(false);
       fetchMyFoods();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Gagal menambahkan donasi.');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Gagal menambahkan donasi.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (data: FoodFormData) => {
+    if (!editingFood || submitting) return;
+    setSubmitting(true);
+    try {
+      const fd = buildFoodFormData(data);
+      fd.append('_method', 'PUT'); // Laravel method spoofing karena multipart
+      await api.post(`/food/${editingFood.id}`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success('Donasi berhasil diperbarui.');
+      setEditingFood(null);
+      fetchMyFoods();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Gagal memperbarui donasi.');
     } finally {
       setSubmitting(false);
     }
@@ -1050,14 +1326,29 @@ const DonatePage = ({ user }: { user: User | null }) => {
     if (!confirm('Hapus donasi ini?')) return;
     try {
       await api.delete(`/food/${id}`);
+      toast.success('Donasi dihapus.');
       fetchMyFoods();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Gagal menghapus donasi.');
     }
   };
 
   if (!user) return <AuthPage type="login" />;
   if (user.role !== 'donor' && user.role !== 'admin') return null;
+
+  const editInitial: FoodFormData | null = editingFood
+    ? {
+        name: editingFood.name || '',
+        portions: Number(editingFood.portions || 1),
+        pickup_address: editingFood.pickup_address || '',
+        description: editingFood.description || '',
+        expired_at: toDatetimeLocal(editingFood.expired_at || editingFood.expired_date),
+        weight_kg: Number(editingFood.weight_kg || 0),
+        category: editingFood.category || 'Makanan Matang',
+        image_file: null,
+        current_image: editingFood.image || null,
+      }
+    : null;
 
   return (
     <div className="pt-32 pb-20 px-4">
@@ -1069,7 +1360,10 @@ const DonatePage = ({ user }: { user: User | null }) => {
             <p className="text-slate-500 font-medium italic text-sm mt-2">Bagikan makanan berlebihmu ke sesama. Setiap porsi berarti.</p>
           </div>
           <button
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => {
+              setEditingFood(null);
+              setShowForm((v) => !v);
+            }}
             className="px-6 py-4 bg-emerald-500 text-white font-black rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all flex items-center gap-2 uppercase text-xs tracking-widest"
           >
             <PlusCircle className="w-5 h-5" /> {showForm ? 'Tutup Form' : 'Tambah Donasi'}
@@ -1083,98 +1377,13 @@ const DonatePage = ({ user }: { user: User | null }) => {
             className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 md:p-10 mb-12"
           >
             <h2 className="text-2xl font-black text-slate-900 mb-6">Form Donasi Makanan</h2>
-            <form onSubmit={handleSubmit} className="grid gap-6">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                  Nama Makanan
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: Nasi Kotak Ayam Bakar"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-lg text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                  Jumlah Makanan / Porsi
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  required
-                  value={formData.portions}
-                  onChange={(e) =>
-                    setFormData({ ...formData, portions: Math.max(1, parseInt(e.target.value) || 1) })
-                  }
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-lg text-slate-900"
-                />
-                <p className="text-xs text-slate-400 mt-2">Penerima bisa klaim sebagian porsi saja.</p>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                  Lokasi Penjemputan
-                </label>
-                <textarea
-                  required
-                  placeholder="Alamat lengkap untuk penjemputan..."
-                  value={formData.pickup_address}
-                  onChange={(e) => setFormData({ ...formData, pickup_address: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 h-28 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                  Keterangan
-                </label>
-                <textarea
-                  placeholder="Catatan tambahan, kondisi makanan, instruksi penjemputan..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 h-28 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                  Kapan Makanan Tidak Layak Lagi / Basi
-                </label>
-                <input
-                  type="date"
-                  required
-                  min={today}
-                  value={formData.expired_date}
-                  onChange={(e) => setFormData({ ...formData, expired_date: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-900"
-                />
-                <p className="text-xs text-slate-400 mt-2">Tanggal estimasi makanan masih aman dikonsumsi.</p>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData(emptyForm);
-                    setShowForm(false);
-                  }}
-                  className="px-6 py-4 bg-slate-50 text-slate-600 font-black rounded-2xl hover:bg-slate-100 uppercase text-xs tracking-widest"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 disabled:opacity-60 uppercase text-xs tracking-widest"
-                >
-                  {submitting ? 'Menyimpan...' : 'Donasikan Sekarang'}
-                </button>
-              </div>
-            </form>
+            <FoodForm
+              initialData={emptyForm}
+              submitLabel="Donasikan Sekarang"
+              submitting={submitting}
+              onCancel={() => setShowForm(false)}
+              onSubmit={handleCreate}
+            />
           </motion.div>
         )}
 
@@ -1212,52 +1421,72 @@ const DonatePage = ({ user }: { user: User | null }) => {
                       : claimed > 0
                         ? 'bg-amber-50 text-amber-600'
                         : 'bg-emerald-50 text-emerald-600';
+                const canEdit = food.status !== 'completed';
                 return (
-                  <div key={food.id} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${statusClass}`}>
-                          {statusLabel}
-                        </span>
-                        <h3 className="text-lg font-black text-slate-900 mt-3 truncate">{food.name}</h3>
-                      </div>
-                      <button
-                        onClick={() => handleDelete(food.id)}
-                        className="p-2 bg-slate-50 text-slate-300 rounded-xl hover:bg-red-50 hover:text-red-500 shrink-0"
-                        aria-label="Hapus"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 mt-4">
-                      <div className="bg-slate-50 rounded-xl p-3 text-center">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total</p>
-                        <p className="text-lg font-black text-slate-900">{total}</p>
-                      </div>
-                      <div className="bg-amber-50 rounded-xl p-3 text-center">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">Diklaim</p>
-                        <p className="text-lg font-black text-amber-600">{claimed}</p>
-                      </div>
-                      <div className="bg-emerald-50 rounded-xl p-3 text-center">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Sisa</p>
-                        <p className="text-lg font-black text-emerald-600">{remaining}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2 mt-4 text-xs text-slate-500">
-                      <MapPin className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                      <span className="line-clamp-2">{food.pickup_address}</span>
-                    </div>
-                    {food.description && (
-                      <div className="flex items-start gap-2 mt-2 text-xs text-slate-500">
-                        <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                        <span className="line-clamp-2">{food.description}</span>
+                  <div key={food.id} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+                    {food.image && (
+                      <div className="h-40 bg-slate-100">
+                        <img src={food.image} alt={food.name} className="w-full h-full object-cover" />
                       </div>
                     )}
-                    <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                      <Clock className="w-4 h-4 text-amber-500 shrink-0" />
-                      <span>Basi setelah: <strong className="text-slate-700">{food.expired_date}</strong></span>
+                    <div className="p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${statusClass}`}>{statusLabel}</span>
+                          <h3 className="text-lg font-black text-slate-900 mt-3 truncate">{food.name}</h3>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          {canEdit && (
+                            <button
+                              onClick={() => {
+                                setShowForm(false);
+                                setEditingFood(food);
+                              }}
+                              className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-emerald-50 hover:text-emerald-600"
+                              aria-label="Edit"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(food.id)}
+                            className="p-2 bg-slate-50 text-slate-300 rounded-xl hover:bg-red-50 hover:text-red-500"
+                            aria-label="Hapus"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 mt-4">
+                        <div className="bg-slate-50 rounded-xl p-3 text-center">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total</p>
+                          <p className="text-lg font-black text-slate-900">{total}</p>
+                        </div>
+                        <div className="bg-amber-50 rounded-xl p-3 text-center">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">Diklaim</p>
+                          <p className="text-lg font-black text-amber-600">{claimed}</p>
+                        </div>
+                        <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Sisa</p>
+                          <p className="text-lg font-black text-emerald-600">{remaining}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2 mt-4 text-xs text-slate-500">
+                        <MapPin className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span className="line-clamp-2">{food.pickup_address}</span>
+                      </div>
+                      {food.description && (
+                        <div className="flex items-start gap-2 mt-2 text-xs text-slate-500">
+                          <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                          <span className="line-clamp-2">{food.description}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                        <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                        <span>Basi pada: <strong className="text-slate-700">{formatExpiredLabel(food)}</strong></span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1266,6 +1495,45 @@ const DonatePage = ({ user }: { user: User | null }) => {
           )}
         </div>
       </div>
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {editingFood && editInitial && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingFood(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-black text-slate-900">Edit Donasi</h2>
+                <button
+                  onClick={() => setEditingFood(null)}
+                  className="p-2 hover:bg-slate-50 rounded-xl text-slate-400"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <FoodForm
+                initialData={editInitial}
+                submitLabel="Simpan Perubahan"
+                submitting={submitting}
+                isEdit
+                onCancel={() => setEditingFood(null)}
+                onSubmit={handleUpdate}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -1325,6 +1593,7 @@ const AddFoodModal = ({ onClose, onAdd }: { onClose: () => void; onAdd: (data: a
 
 // --- Profile Page ---
 const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User) => void }) => {
+  const toast = useToast();
   const [formData, setFormData] = useState({ name: user?.name || '', phone: user?.phone || '', address: user?.address || '' });
   const [loading, setLoading] = useState(false);
   const [roleLoading, setRoleLoading] = useState<'donor' | 'receiver' | null>(null);
@@ -1337,8 +1606,8 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
     try {
       const res = await api.put('/users/profile', formData);
       onUpdate(res.data);
-      alert('Profil berhasil diperbarui!');
-    } catch (error) { console.error(error); }
+      toast.success('Profil berhasil diperbarui.');
+    } catch (error) { console.error(error); toast.error('Gagal memperbarui profil.'); }
     finally { setLoading(false); }
   };
 
@@ -1346,16 +1615,17 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
     if (user.role === newRole) return;
     // Admin tidak bisa jadi donor/receiver biasa
     if (user.role === 'admin') {
-      alert('Peran Admin tidak bisa diubah dari halaman ini.');
+      toast.info('Peran Admin tidak bisa diubah dari halaman ini.');
       return;
     }
     setRoleLoading(newRole);
     try {
       const updated = await authService.updateRole(newRole);
       onUpdate(updated);
+      toast.success(`Peran kamu sekarang: ${newRole === 'donor' ? 'Pendonor' : 'Penerima'}.`);
     } catch (error) {
       console.error('Gagal mengubah peran:', error);
-      alert('Gagal mengubah peran. Coba lagi.');
+      toast.error('Gagal mengubah peran. Coba lagi.');
     } finally {
       setRoleLoading(null);
     }
@@ -1589,6 +1859,7 @@ const App = () => {
 
   return (
     <Router>
+      <ToastProvider>
       <div className="min-h-screen flex flex-col bg-slate-50 selection:bg-emerald-500/20 selection:text-emerald-500">
         <Navbar user={user} onLogout={handleLogout} />
         <main className="flex-1 flex flex-col">
@@ -1670,6 +1941,7 @@ const App = () => {
           </div>
         </footer>
       </div>
+      </ToastProvider>
     </Router>
   );
 };

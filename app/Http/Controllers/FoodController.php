@@ -29,12 +29,23 @@ class FoodController extends Controller
             'weight_kg' => 'nullable|numeric|min:0',
             'pickup_address' => 'required|string',
             'expired_date' => 'nullable|string',
+            'expired_at' => 'nullable|date',
             'description' => 'nullable|string',
             'category' => 'nullable|string',
             'image' => 'nullable|string',
+            'image_file' => 'nullable|image|max:4096',
         ]);
 
         $user = $request->user();
+
+        $imageUrl = $validated['image'] ?? null;
+        if ($request->hasFile('image_file')) {
+            $path = $request->file('image_file')->store('foods', 'public');
+            $imageUrl = url('storage/' . $path);
+        }
+
+        $expiredAt = $validated['expired_at'] ?? null;
+        $expiredDateLabel = $validated['expired_date'] ?? ($expiredAt ?: 'Hari ini');
 
         $food = Food::create([
             'name' => $validated['name'],
@@ -42,13 +53,14 @@ class FoodController extends Controller
             'claimed_portions' => 0,
             'weight_kg' => $validated['weight_kg'] ?? 1,
             'pickup_address' => $validated['pickup_address'],
-            'expired_date' => $validated['expired_date'] ?? 'Hari ini',
+            'expired_date' => $expiredDateLabel,
+            'expired_at' => $expiredAt,
             'description' => $validated['description'] ?? '',
             'category' => $validated['category'] ?? 'Makanan Matang',
             'status' => 'available',
             'donor_id' => $user->id,
             'donor_name' => $user->name,
-            'image' => $validated['image'] ?? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800',
+            'image' => $imageUrl ?: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800',
         ]);
 
         $food->remaining_portions = $food->remainingPortions();
@@ -70,11 +82,47 @@ class FoodController extends Controller
             'weight_kg' => 'nullable|numeric|min:0',
             'pickup_address' => 'nullable|string',
             'expired_date' => 'nullable|string',
+            'expired_at' => 'nullable|date',
             'description' => 'nullable|string',
+            'category' => 'nullable|string',
             'status' => 'nullable|in:available,claimed,completed',
+            'image' => 'nullable|string',
+            'image_file' => 'nullable|image|max:4096',
         ]);
 
-        $food->update(array_filter($validated, fn ($v) => $v !== null));
+        if ($request->hasFile('image_file')) {
+            $path = $request->file('image_file')->store('foods', 'public');
+            $validated['image'] = url('storage/' . $path);
+        }
+
+        // Pastikan portions baru tidak lebih kecil dari yang sudah diklaim
+        if (array_key_exists('portions', $validated) && $validated['portions'] !== null) {
+            if ($validated['portions'] < $food->claimed_portions) {
+                return response()->json([
+                    'error' => "Porsi baru ({$validated['portions']}) tidak boleh lebih kecil dari porsi yang sudah diklaim ({$food->claimed_portions}).",
+                ], 422);
+            }
+        }
+
+        unset($validated['image_file']);
+        $payload = array_filter($validated, fn ($v) => $v !== null);
+
+        // Kalau expired_at diubah, update juga label expired_date supaya konsisten
+        if (array_key_exists('expired_at', $payload) && !array_key_exists('expired_date', $payload)) {
+            $payload['expired_date'] = $payload['expired_at'];
+        }
+
+        $food->update($payload);
+
+        // Recalculate status kalau portions berubah
+        if (array_key_exists('portions', $payload)) {
+            if ($food->claimed_portions >= $food->portions) {
+                $food->status = $food->status === 'completed' ? 'completed' : 'claimed';
+            } else {
+                $food->status = $food->status === 'completed' ? 'completed' : 'available';
+            }
+            $food->save();
+        }
 
         $food->remaining_portions = $food->remainingPortions();
 
@@ -109,6 +157,17 @@ class FoodController extends Controller
         $requestedPortions = $validated['portions'] ?? 1;
 
         $claim = DB::transaction(function () use ($validated, $user, $requestedPortions) {
+            // Pastikan user belum punya claim aktif lain
+            $hasActiveClaim = Claim::where('receiver_id', $user->id)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->exists();
+            if ($hasActiveClaim) {
+                abort(response()->json([
+                    'error' => 'Kamu masih punya klaim aktif. Selesaikan klaim sebelumnya dulu untuk mengklaim makanan baru.',
+                ], 400));
+            }
+
             /** @var Food $food */
             $food = Food::lockForUpdate()->findOrFail($validated['food_id']);
 
