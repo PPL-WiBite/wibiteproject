@@ -19,6 +19,7 @@ import ReactMarkdown from 'react-markdown';
 import api from '@/lib/api';
 import type { User } from '@/lib/auth';
 import { useToast } from './Toast';
+import { useConfirm } from './Confirm';
 
 interface ForumPost {
   id: number;
@@ -135,6 +136,7 @@ const getCategoryIcon = (category: string) => {
 
 export default function ForumPage({ user }: { user: User | null }) {
   const toast = useToast();
+  const confirmDialog = useConfirm();
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddingPost, setIsAddingPost] = useState(false);
@@ -225,7 +227,14 @@ export default function ForumPage({ user }: { user: User | null }) {
   };
 
   const handleDeletePost = async (postId: number) => {
-    if (!user || !window.confirm('Hapus postingan ini?')) return;
+    if (!user) return;
+    const ok = await confirmDialog({
+      title: 'Hapus Postingan',
+      message: 'Postingan beserta komentarnya akan dihapus permanen. Lanjutkan?',
+      confirmLabel: 'Ya, Hapus',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/forum/${postId}`);
       if (selectedPost?.id === postId) setSelectedPost(null);

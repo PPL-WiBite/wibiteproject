@@ -13,6 +13,7 @@ import api from '@/lib/api';
 import ForumPage from '@/components/Forum';
 import ChatModal from '@/components/ChatModal';
 import { ToastProvider, useToast } from '@/components/Toast';
+import { ConfirmProvider, useConfirm } from '@/components/Confirm';
 
 // --- Navbar ---
 const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
@@ -845,6 +846,7 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
 // --- Dashboard Page ---
 const DashboardPage = ({ user }: { user: User | null }) => {
   const toast = useToast();
+  const confirmDialog = useConfirm();
   const [activeTab, setActiveTab] = useState<'listings' | 'claims' | 'history' | 'impact'>('listings');
   const [foods, setFoods] = useState<any[]>([]);
   const [myClaims, setMyClaims] = useState<any[]>([]);
@@ -911,7 +913,13 @@ const DashboardPage = ({ user }: { user: User | null }) => {
   }, [user]);
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Hapus donasi ini?')) return;
+    const ok = await confirmDialog({
+      title: 'Hapus Donasi',
+      message: 'Donasi ini akan dihapus permanen. Lanjutkan?',
+      confirmLabel: 'Ya, Hapus',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/food/${id}`);
       fetchDashboardData();
@@ -919,7 +927,12 @@ const DashboardPage = ({ user }: { user: User | null }) => {
   };
 
   const handleConfirmPickup = async (claimId: number) => {
-    if (!confirm('Konfirmasi bahwa transaksi telah selesai?')) return;
+    const ok = await confirmDialog({
+      title: 'Selesaikan Transaksi',
+      message: 'Konfirmasi bahwa transaksi telah selesai dari sisi kamu?',
+      confirmLabel: 'Ya, Selesai',
+    });
+    if (!ok) return;
     try {
       const res = await api.post('/claims/complete', { claim_id: claimId });
       const claimStatus = res.data?.claim?.status;
@@ -1461,6 +1474,7 @@ const FoodForm = ({
 const DonatePage = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
   const toast = useToast();
+  const confirmDialog = useConfirm();
   const [myFoods, setMyFoods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -1538,7 +1552,13 @@ const DonatePage = ({ user }: { user: User | null }) => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Hapus donasi ini?')) return;
+    const ok = await confirmDialog({
+      title: 'Hapus Donasi',
+      message: 'Donasi ini akan dihapus permanen dari daftar. Lanjutkan?',
+      confirmLabel: 'Ya, Hapus',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/food/${id}`);
       toast.success('Donasi dihapus.');
@@ -1970,6 +1990,8 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
 
 // --- Admin Dashboard ---
 const AdminDashboard = ({ user }: { user: User | null }) => {
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [foods, setFoods] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1990,15 +2012,37 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
   if (user?.role !== 'admin') return <div className="pt-32 text-center font-black">Akses Ditolak</div>;
 
   const handleDeleteFood = async (id: number) => {
-    if (!confirm('Hapus makanan ini?')) return;
-    await api.delete(`/food/${id}`);
-    setFoods(foods.filter(f => f.id !== id));
+    const ok = await confirmDialog({
+      title: 'Hapus Makanan',
+      message: 'Data makanan akan dihapus permanen. Lanjutkan?',
+      confirmLabel: 'Ya, Hapus',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/food/${id}`);
+      setFoods(foods.filter(f => f.id !== id));
+      toast.success('Makanan dihapus.');
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Gagal menghapus makanan.');
+    }
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (!confirm('Hapus user ini?')) return;
-    await api.delete(`/admin/users/${id}`);
-    setUsers(users.filter(u => u.id !== id));
+    const ok = await confirmDialog({
+      title: 'Hapus User',
+      message: 'User beserta aktivitasnya akan dihapus. Aksi ini tidak bisa dibatalkan.',
+      confirmLabel: 'Ya, Hapus',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/admin/users/${id}`);
+      setUsers(users.filter(u => u.id !== id));
+      toast.success('User dihapus.');
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Gagal menghapus user.');
+    }
   };
 
   return (
@@ -2075,6 +2119,7 @@ const App = () => {
   return (
     <Router>
       <ToastProvider>
+      <ConfirmProvider>
       <div className="min-h-screen flex flex-col bg-slate-50 selection:bg-emerald-500/20 selection:text-emerald-500">
         <Navbar user={user} onLogout={handleLogout} />
         <main className="flex-1 flex flex-col">
@@ -2176,6 +2221,7 @@ const App = () => {
           </div>
         </footer>
       </div>
+      </ConfirmProvider>
       </ToastProvider>
     </Router>
   );
