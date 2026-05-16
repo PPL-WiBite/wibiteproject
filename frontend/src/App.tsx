@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
+import {
   Heart, Search, LayoutDashboard, LogOut, MapPin, ChevronRight, TrendingUp,
-  Globe, Leaf, Clock, Info, X, Star, CheckCircle2, Lock, Mail,
-  User as UserIcon, MessageCircle, LogIn, Trash2, Pencil, PlusCircle,
+  Globe, Leaf, Clock, X, CheckCircle2, Lock, Mail, MessageSquare,
+  User as UserIcon, LogIn, Trash2, PlusCircle,
   HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon
 } from 'lucide-react';
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
 import ForumPage from '@/components/Forum';
+import DonorDashboard from '@/components/DonorDashboard';
+import ReceiverDashboard from '@/components/ReceiverDashboard';
+import MapPreview from '@/components/MapPreview';
+import Chat from '@/components/Chat';
 
 // --- Navbar ---
 const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
@@ -23,17 +27,15 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
   }, []);
 
   const navLinkClass = (path: string) =>
-    `px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-      location.pathname === path
-        ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/20'
-        : 'text-slate-500 hover:bg-white hover:text-emerald-500'
+    `px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${location.pathname === path
+      ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/20'
+      : 'text-slate-500 hover:bg-white hover:text-emerald-500'
     }`;
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-5'
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-5'
+        }`}
     >
       <div className="w-full px-6 lg:px-10 relative flex items-center justify-between">
         {/* KIRI: Logo */}
@@ -46,7 +48,11 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
 
         {/* TENGAH: Nav menu (absolute, benar-benar rata tengah) */}
         <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center bg-slate-50/80 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-100 gap-1">
-          <Link to="/explore" className={navLinkClass('/explore')}>Cari Makanan</Link>
+          {user?.role === 'donor' ? (
+            <Link to="/dashboard" className={navLinkClass('/dashboard')}>Donasi Makanan</Link>
+          ) : (
+            <Link to="/explore" className={navLinkClass('/explore')}>Cari Makanan</Link>
+          )}
           <Link to="/forum" className={navLinkClass('/forum')}>Forum</Link>
           <Link to="/guidelines" className={navLinkClass('/guidelines')}>Pedoman</Link>
         </div>
@@ -55,6 +61,14 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
         <div className="flex items-center gap-3 flex-shrink-0">
           {user ? (
             <>
+              {user.role === 'donor' && (
+                <Link
+                  to="/dashboard?add=1"
+                  className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-white bg-emerald-500 px-4 py-2.5 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" /> Donasi Makanan
+                </Link>
+              )}
               {user.role === 'admin' && (
                 <Link
                   to="/admin"
@@ -71,11 +85,12 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
                 <UserIcon className="w-4 h-4 text-slate-600" />
               </Link>
               <Link
-                to="/dashboard"
-                className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
-                title="Dashboard"
+                to="/chat"
+                className="relative p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
+                title="Chat"
               >
-                <LayoutDashboard className="w-4 h-4 text-slate-600" />
+                <MessageSquare className="w-4 h-4 text-slate-600" />
+                {/* <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 border border-slate-50 rounded-full animate-pulse"></span> */}
               </Link>
               <button
                 onClick={onLogout}
@@ -259,26 +274,43 @@ const ExplorePage = ({ user }: { user: User | null }) => {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredFoods.map((food) => (
-              <motion.div key={food.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} onClick={() => setSelectedFood(food)} className="bg-white rounded-[2.5rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-emerald-500/10 transition-all cursor-pointer group">
-                <div className="relative h-56">
-                  <img src={food.image} alt={food.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  <div className="absolute top-5 left-5">
-                    <span className="px-3 py-1 bg-white/90 backdrop-blur-md text-emerald-600 text-[10px] font-bold rounded-full uppercase tracking-widest border border-emerald-100">{food.portions} Porsi</span>
+              <motion.div key={food.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} onClick={() => setSelectedFood(food)} className="bg-white rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all cursor-pointer group flex flex-col">
+                {/* Image Section */}
+                <div className="relative h-56 w-full shrink-0 overflow-hidden bg-slate-100">
+                  <img src={food.image || 'https://via.placeholder.com/400x300'} alt={food.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <div className="absolute top-4 left-4">
+                    <span className="px-3 py-1.5 bg-white text-amber-500 text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm">
+                      {food.category || 'TERSEDIA'}
+                    </span>
                   </div>
                 </div>
-                <div className="p-8">
-                  <h3 className="text-xl font-bold text-slate-900 mb-2 truncate group-hover:text-emerald-500 transition-colors uppercase">{food.name}</h3>
-                  <div className="flex items-center gap-2 text-slate-500 text-xs font-medium mb-6">
-                    <MapPin className="w-4 h-4 text-emerald-500" /> {food.pickup_address || 'Lokasi tidak tersedia'}
-                  </div>
-                  <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-400 text-xs">{food.donor_name?.[0] || 'D'}</div>
-                      <span className="text-sm font-bold text-slate-900">{food.donor_name || 'Donatur'}</span>
+
+                {/* Content Section */}
+                <div className="p-6 flex flex-col flex-grow">
+                  <div className="flex justify-between items-start gap-4 mb-2">
+                    <h3 className="text-xl font-extrabold text-emerald-500 leading-tight group-hover:text-emerald-600 transition-colors line-clamp-2">{food.name}</h3>
+                    <div className="text-right shrink-0">
+                      <p className="text-emerald-500 font-black text-sm">{food.portions} Porsi</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tersedia</p>
                     </div>
-                    <button className="p-2 bg-emerald-50 text-emerald-500 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-slate-500 text-xs font-medium mb-6">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span className="truncate">{food.pickup_address?.split(',')[0] || 'Lokasi tidak tersedia'}</span>
+                  </div>
+
+                  <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-xs shrink-0 overflow-hidden border border-slate-200">
+                        <img src={`https://ui-avatars.com/api/?name=${food.donor_name || 'D'}&background=f1f5f9&color=64748b`} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="min-w-0 pr-2">
+                        <p className="text-xs font-black text-slate-900 truncate">{food.donor_name || 'Donatur'}</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 truncate">Donor Terverifikasi</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest shrink-0">Lihat Detail</span>
                   </div>
                 </div>
               </motion.div>
@@ -296,17 +328,82 @@ const ExplorePage = ({ user }: { user: User | null }) => {
         {selectedFood && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedFood(null)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
-              <button onClick={() => setSelectedFood(null)} className="absolute top-6 right-6 p-2 bg-white/80 backdrop-blur-md rounded-full text-slate-900 z-20 hover:bg-white transition-colors border border-slate-100 shadow-sm"><X className="w-5 h-5" /></button>
-              <div className="relative h-64 md:h-80">
-                <img src={selectedFood.image} alt={selectedFood.name} className="w-full h-full object-cover" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white w-full max-w-4xl rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 max-h-[95vh] overflow-y-auto flex flex-col md:flex-row">
+              <button onClick={() => setSelectedFood(null)} className="absolute top-4 right-4 md:right-6 md:top-6 p-2 bg-white/80 backdrop-blur-md rounded-full text-slate-900 z-20 hover:bg-slate-100 transition-colors shadow-sm"><X className="w-5 h-5" /></button>
+
+              {/* Left Image Side */}
+              <div className="md:w-5/12 h-64 md:h-auto relative bg-slate-100 shrink-0">
+                <img src={selectedFood.image || 'https://via.placeholder.com/400x600'} alt={selectedFood.name} className="w-full h-full object-cover" />
+                <div className="absolute top-4 left-4">
+                  <span className="px-3 py-1.5 bg-white text-amber-500 text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm">
+                    {selectedFood.category || 'TERSEDIA'}
+                  </span>
+                </div>
               </div>
-              <div className="p-8 md:p-10">
-                <h2 className="text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">{selectedFood.name}</h2>
-                <div className="flex items-center gap-2 text-slate-500 font-medium text-sm mb-6"><MapPin className="w-4 h-4 text-emerald-500" /> {selectedFood.pickup_address}</div>
-                <p className="text-slate-600 text-sm leading-relaxed mb-6">{selectedFood.description || 'Tidak ada catatan.'}</p>
-                <div className="flex gap-4 pt-4 border-t border-slate-100">
-                  <button onClick={() => handleClaim(selectedFood.id)} className="flex-1 py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all">Klaim Makanan</button>
+
+              {/* Right Content Side */}
+              <div className="p-8 md:p-10 flex-1 flex flex-col">
+                <div className="flex flex-col-reverse md:flex-row justify-between items-start gap-6 mb-8">
+                  <div>
+                    <h2 className="text-3xl font-extrabold text-slate-900 mb-2 leading-tight tracking-tight">{selectedFood.name}</h2>
+                    <div className="flex items-center gap-1.5 text-slate-500 font-medium text-sm">
+                      <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
+                      {selectedFood.pickup_address?.split(',').slice(-2).join(', ') || 'Lokasi Tersedia'}
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-sm flex items-center gap-3 shrink-0 md:mt-0 mt-4">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center font-bold text-emerald-600 text-sm overflow-hidden">
+                      <img src={`https://ui-avatars.com/api/?name=${selectedFood.donor_name || 'D'}&background=10b981&color=fff`} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-900 leading-tight pr-2">{selectedFood.donor_name || 'Donatur'}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-amber-400 text-xs">★</span>
+                        <span className="text-xs font-bold text-amber-500">4.9</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8 mb-8">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                      Waktu Pengambilan
+                    </p>
+                    <div className="bg-emerald-50/50 text-emerald-900 font-bold px-4 py-3 rounded-xl inline-block border border-emerald-100/50 text-sm">
+                      Batas: {new Date(selectedFood.expired_date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                      Kondisi & Catatan Donor
+                    </p>
+                    <div className="flex gap-2 mb-2">
+                      <span className="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-md text-[9px] font-bold uppercase">{selectedFood.category || 'Murni'}</span>
+                      <span className="px-2 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-md text-[9px] font-bold uppercase">Halal</span>
+                    </div>
+                    <p className="text-slate-500 text-sm italic leading-relaxed">
+                      "{selectedFood.description || 'Kondisi makanan masih sangat baik dan layak konsumsi.'}"
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mb-8 flex-grow">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                    Alamat Penjemputan
+                  </p>
+                  <p className="text-slate-700 text-sm font-medium mb-4 leading-relaxed">{selectedFood.pickup_address}</p>
+                  {selectedFood.lat && selectedFood.lng && (
+                    <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative">
+                      <MapPreview lat={selectedFood.lat} lng={selectedFood.lng} label={selectedFood.name} />
+                      <a href={`https://www.google.com/maps?q=${selectedFood.lat},${selectedFood.lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 hover:text-blue-700 shadow-sm transition-colors border border-slate-100">Buka di Maps ↗</a>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-auto pt-4 border-t border-slate-50">
+                  <button onClick={() => handleClaim(selectedFood.id)} className="w-full py-4 px-6 bg-emerald-500 text-white font-black text-base uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5">Klaim Makanan</button>
                 </div>
               </div>
             </motion.div>
@@ -322,6 +419,7 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState<'donor' | 'receiver'>('receiver');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -335,8 +433,8 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
         await authService.login({ email, password });
         navigate('/dashboard');
       } else {
-        await authService.register({ name, email, password, role: 'receiver' });
-        navigate('/explore');
+        await authService.register({ name, email, password, role });
+        navigate('/dashboard');
       }
       window.location.reload();
     } catch (err: any) {
@@ -441,7 +539,7 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Contoh: Budi Santoso"
+                    placeholder="Masukkan nama lengkap"
                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 pl-12 pr-5 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-slate-900 placeholder:text-slate-300"
                     required
                   />
@@ -479,6 +577,34 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
               </div>
             </div>
 
+            {type === 'register' && (
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Saya Ingin Menjadi</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole('receiver')}
+                    className={`py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${role === 'receiver'
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
+                      : 'border-slate-100 bg-white text-slate-400 hover:border-emerald-200'
+                      }`}
+                  >
+                    Penerima
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('donor')}
+                    className={`py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${role === 'donor'
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
+                      : 'border-slate-100 bg-white text-slate-400 hover:border-emerald-200'
+                      }`}
+                  >
+                    Pendonor
+                  </button>
+                </div>
+              </div>
+            )}
+
             <button
               disabled={isLoading}
               className="w-full bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 transition-all transform active:scale-[0.98] flex items-center justify-center gap-3 uppercase tracking-widest text-sm disabled:opacity-60 disabled:cursor-not-allowed"
@@ -511,160 +637,17 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
   );
 };
 
-// --- Dashboard Page ---
+// --- Dashboard Page (routes to role-specific dashboard) ---
 const DashboardPage = ({ user }: { user: User | null }) => {
-  const [activeTab, setActiveTab] = useState<'listings' | 'claims' | 'history' | 'impact'>('listings');
-  const [foods, setFoods] = useState<any[]>([]);
-  const [claims, setClaims] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isAddingFood, setIsAddingFood] = useState(false);
-  const [stats, setStats] = useState({ foodSaved: 0, peopleHelped: 0 });
-
-  const isDonor = user?.role === 'donor' || user?.role === 'admin';
-  const isReceiver = user?.role === 'receiver';
-
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/food');
-      const allFood = res.data;
-      if (isDonor) {
-        const myFood = allFood.filter((f: any) => f.donor_id === user?.id);
-        setFoods(myFood);
-        const completed = myFood.filter((f: any) => f.status === 'completed');
-        setStats({ foodSaved: completed.reduce((acc: number, curr: any) => acc + (curr.weight_kg || 0), 0), peopleHelped: completed.reduce((acc: number, curr: any) => acc + (curr.portions || 0), 0) });
-      }
-      const myClaims = allFood.filter((f: any) => f.claimed_by === user?.id);
-      setClaims(myClaims);
-      if (isReceiver) {
-        const completed = myClaims.filter((f: any) => f.status === 'completed');
-        setStats({ foodSaved: completed.reduce((acc: number, curr: any) => acc + (curr.weight_kg || 0), 0), peopleHelped: completed.reduce((acc: number, curr: any) => acc + (curr.portions || 0), 0) });
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchDashboardData();
-      if (isReceiver) setActiveTab('claims');
-    }
-  }, [user]);
-
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Hapus donasi ini?')) return;
-    try {
-      await api.delete(`/food/${id}`);
-      fetchDashboardData();
-    } catch (error) { console.error('Delete failed:', error); }
-  };
-
-  const handleConfirmPickup = async (foodId: number) => {
-    if (!confirm('Konfirmasi bahwa makanan telah dijemput?')) return;
-    try {
-      await api.post('/claims/complete', { food_id: foodId });
-      alert('Penjemputan berhasil dikonfirmasi!');
-      fetchDashboardData();
-    } catch (error) { console.error(error); }
-  };
-
-  const handleAddFood = async (formData: any) => {
-    try {
-      await api.post('/food', formData);
-      setIsAddingFood(false);
-      fetchDashboardData();
-    } catch (error) { console.error('Add food failed:', error); }
-  };
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+  const openAdd = searchParams.get('add') === '1';
+  const handleCloseAdd = () => { window.history.replaceState({}, '', '/dashboard'); };
 
   if (!user) return <AuthPage type="login" />;
-
-  const activeItems = isDonor ? foods.filter(f => f.status !== 'completed') : claims.filter(c => c.status !== 'completed');
-  const historyItems = isDonor ? foods.filter(f => f.status === 'completed') : claims.filter(c => c.status === 'completed');
-
-  return (
-    <div className="pt-32 pb-20 px-4 max-w-7xl mx-auto">
-      <div className="grid lg:grid-cols-4 gap-12">
-        <div className="space-y-6">
-          <div className="bg-white p-10 rounded-[3.5rem] shadow-sm border border-slate-50">
-            <div className="w-24 h-24 bg-emerald-500 rounded-[2rem] flex items-center justify-center text-white text-4xl font-black mb-8 shadow-2xl shadow-emerald-500/20">{user.name?.[0] || 'U'}</div>
-            <h2 className="text-2xl font-black text-slate-900">{user.name}</h2>
-            <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.2em] mt-3 bg-emerald-50 px-3 py-1 rounded-full inline-block">{user.role}</p>
-          </div>
-          <nav className="bg-white p-4 rounded-[2.5rem] shadow-sm border border-slate-50 space-y-2">
-            {isDonor && <button onClick={() => setActiveTab('listings')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'listings' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><Heart className="w-5 h-5" /> Kelola Donasi</button>}
-            {isReceiver && <button onClick={() => setActiveTab('claims')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'claims' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><MapPin className="w-5 h-5" /> Klaim Aktif</button>}
-            <button onClick={() => setActiveTab('history')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'history' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><Clock className="w-5 h-5" /> Riwayat</button>
-            <button onClick={() => setActiveTab('impact')} className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-black text-sm transition-all ${activeTab === 'impact' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-400 hover:bg-slate-50'}`}><TrendingUp className="w-5 h-5" /> Dampak</button>
-          </nav>
-          {isDonor && <button onClick={() => setIsAddingFood(true)} className="w-full bg-slate-900 text-white font-black py-6 rounded-[2.5rem] shadow-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3"><PlusCircle className="w-6 h-6 text-emerald-400" /> Donasi Makanan</button>}
-        </div>
-        <div className="lg:col-span-3">
-          {(activeTab === 'listings' || activeTab === 'claims') && (
-            <div className="space-y-8">
-              <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">{activeTab === 'listings' ? 'Donasi Aktif' : 'Klaim Aktif'}</h3>
-              {loading ? <div className="h-40 bg-slate-100 animate-pulse rounded-3xl" /> : activeItems.length > 0 ? (
-                <div className="grid gap-6">
-                  {activeItems.map((food) => (
-                    <div key={food.id} className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-                      <div className="flex items-center gap-6">
-                        <div className="w-20 h-20 rounded-2xl overflow-hidden"><img src={food.image} className="w-full h-full object-cover" /></div>
-                        <div>
-                          <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${food.status === 'claimed' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>{food.status === 'claimed' ? 'Diklaim' : 'Tersedia'}</span>
-                          <h4 className="text-xl font-black text-slate-900 mt-2">{food.name}</h4>
-                          <p className="text-xs text-slate-400">{food.portions} Porsi &bull; {food.pickup_address}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-3">
-                        {isReceiver && food.status === 'claimed' && <button onClick={() => handleConfirmPickup(food.id)} className="px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600"><CheckCircle2 className="w-5 h-5 inline mr-2" />Selesai</button>}
-                        {isDonor && <button onClick={() => handleDelete(food.id)} className="p-3 bg-slate-50 text-slate-300 rounded-2xl hover:bg-red-50 hover:text-red-500"><Trash2 className="w-5 h-5" /></button>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-100"><p className="text-slate-400 font-bold">Belum ada aktivitas.</p></div>}
-            </div>
-          )}
-          {activeTab === 'history' && (
-            <div className="space-y-8">
-              <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Riwayat</h3>
-              {historyItems.length > 0 ? historyItems.map(food => (
-                <div key={food.id} className="bg-white p-6 rounded-3xl border border-slate-50 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                    <div><p className="font-black text-slate-900">{food.name}</p><p className="text-xs text-slate-400">{food.portions} Porsi</p></div>
-                  </div>
-                  <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full">Sukses</span>
-                </div>
-              )) : <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-100"><p className="text-slate-400 font-bold">Belum ada riwayat.</p></div>}
-            </div>
-          )}
-          {activeTab === 'impact' && (
-            <div className="space-y-10">
-              <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Jejak Kebaikan</h3>
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="bg-emerald-500 p-12 rounded-[4rem] text-white shadow-2xl shadow-emerald-500/20">
-                  <div className="text-7xl font-black">{stats.foodSaved}<span className="text-2xl ml-2 text-emerald-200">kg</span></div>
-                  <div className="text-emerald-100 font-black uppercase tracking-widest text-[10px] mt-4">Makanan Terselamatkan</div>
-                </div>
-                <div className="bg-slate-900 p-12 rounded-[4rem] text-white shadow-2xl">
-                  <div className="text-7xl font-black">{stats.peopleHelped}</div>
-                  <div className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-4">Penerima Manfaat</div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      <AnimatePresence>
-        {isAddingFood && (
-          <AddFoodModal onClose={() => setIsAddingFood(false)} onAdd={handleAddFood} />
-        )}
-      </AnimatePresence>
-    </div>
-  );
+  if (user.role === 'donor' || user.role === 'admin') {
+    return <DonorDashboard user={user} openAddFood={openAdd} onCloseAddFood={handleCloseAdd} />;
+  }
+  return <ReceiverDashboard user={user} />;
 };
 
 // --- Add Food Modal ---
@@ -683,34 +666,34 @@ const AddFoodModal = ({ onClose, onAdd }: { onClose: () => void; onAdd: (data: a
         <form onSubmit={(e) => { e.preventDefault(); onAdd(formData); }} className="grid gap-6">
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Nama Makanan</label>
-            <input type="text" required placeholder="Contoh: 5 Box Nasi Ayam Bakar" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 font-bold text-lg" />
+            <input type="text" required placeholder="Contoh: 5 Box Nasi Ayam Bakar" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 font-bold text-lg" />
           </div>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Jumlah Porsi</label>
-              <input type="number" min="1" value={formData.portions} onChange={e => setFormData({...formData, portions: parseInt(e.target.value)})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
+              <input type="number" min="1" value={formData.portions} onChange={e => setFormData({ ...formData, portions: parseInt(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
             </div>
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Berat (kg)</label>
-              <input type="number" step="0.1" value={formData.weight_kg} onChange={e => setFormData({...formData, weight_kg: parseFloat(e.target.value)})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
+              <input type="number" step="0.1" value={formData.weight_kg} onChange={e => setFormData({ ...formData, weight_kg: parseFloat(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
             </div>
           </div>
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Kategori</label>
             <div className="flex flex-wrap gap-2">
               {categories.map(c => (
-                <button key={c} type="button" onClick={() => setFormData({...formData, category: c})} className={`px-4 py-2 rounded-xl text-xs font-black border transition-all ${formData.category === c ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-slate-100 text-slate-400 hover:border-emerald-500'}`}>{c}</button>
+                <button key={c} type="button" onClick={() => setFormData({ ...formData, category: c })} className={`px-4 py-2 rounded-xl text-xs font-black border transition-all ${formData.category === c ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-slate-100 text-slate-400 hover:border-emerald-500'}`}>{c}</button>
               ))}
             </div>
           </div>
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Alamat Penjemputan</label>
-            <textarea required placeholder="Alamat lengkap..." value={formData.pickup_address} onChange={e => setFormData({...formData, pickup_address: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 h-28 resize-none font-medium" />
+            <textarea required placeholder="Alamat lengkap..." value={formData.pickup_address} onChange={e => setFormData({ ...formData, pickup_address: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 h-28 resize-none font-medium" />
           </div>
           <div className="grid md:grid-cols-2 gap-6 items-end">
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Batas Konsumsi</label>
-              <input type="date" required value={formData.expired_date} onChange={e => setFormData({...formData, expired_date: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
+              <input type="date" required value={formData.expired_date} onChange={e => setFormData({ ...formData, expired_date: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
             </div>
             <button type="submit" className="w-full bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600">Donasi Sekarang</button>
           </div>
@@ -768,6 +751,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
           <p className="text-slate-400 font-medium italic text-sm">Kelola data diri dan peran kamu di komunitas WiBite.</p>
         </div>
 
+
         {/* Role Switcher */}
         {canSwitchRole && (
           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-50 shadow-sm">
@@ -789,16 +773,14 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
                 type="button"
                 onClick={() => handleRoleChange('receiver')}
                 disabled={roleLoading !== null}
-                className={`relative p-5 rounded-2xl border-2 text-left transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                  user.role === 'receiver'
-                    ? 'border-amber-500 bg-amber-50 shadow-lg shadow-amber-500/10'
-                    : 'border-slate-100 bg-white hover:border-amber-300 hover:bg-amber-50/30'
-                }`}
+                className={`relative p-5 rounded-2xl border-2 text-left transition-all disabled:opacity-60 disabled:cursor-not-allowed ${user.role === 'receiver'
+                  ? 'border-amber-500 bg-amber-50 shadow-lg shadow-amber-500/10'
+                  : 'border-slate-100 bg-white hover:border-amber-300 hover:bg-amber-50/30'
+                  }`}
               >
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors ${
-                    user.role === 'receiver' ? 'bg-amber-500 text-white' : 'bg-slate-50 text-slate-400'
-                  }`}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors ${user.role === 'receiver' ? 'bg-amber-500 text-white' : 'bg-slate-50 text-slate-400'
+                    }`}
                 >
                   <Utensils className="w-5 h-5" />
                 </div>
@@ -825,16 +807,14 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
                 type="button"
                 onClick={() => handleRoleChange('donor')}
                 disabled={roleLoading !== null}
-                className={`relative p-5 rounded-2xl border-2 text-left transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                  user.role === 'donor'
-                    ? 'border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/10'
-                    : 'border-slate-100 bg-white hover:border-emerald-300 hover:bg-emerald-50/30'
-                }`}
+                className={`relative p-5 rounded-2xl border-2 text-left transition-all disabled:opacity-60 disabled:cursor-not-allowed ${user.role === 'donor'
+                  ? 'border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/10'
+                  : 'border-slate-100 bg-white hover:border-emerald-300 hover:bg-emerald-50/30'
+                  }`}
               >
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors ${
-                    user.role === 'donor' ? 'bg-emerald-500 text-white' : 'bg-slate-50 text-slate-400'
-                  }`}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors ${user.role === 'donor' ? 'bg-emerald-500 text-white' : 'bg-slate-50 text-slate-400'
+                    }`}
                 >
                   <HandHeart className="w-5 h-5" />
                 </div>
@@ -863,15 +843,15 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
         <form onSubmit={handleSubmit} className="bg-white p-10 rounded-[3rem] border border-slate-50 shadow-sm space-y-6">
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Nama</label>
-            <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
+            <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
           </div>
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Telepon</label>
-            <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
+            <input type="text" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
           </div>
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Alamat</label>
-            <textarea value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold h-32 resize-none" />
+            <textarea value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold h-32 resize-none" />
           </div>
           <button type="submit" disabled={loading} className="w-full bg-emerald-500 text-white font-black py-4 rounded-xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 disabled:opacity-50">{loading ? 'Menyimpan...' : 'Simpan'}</button>
         </form>
@@ -996,6 +976,7 @@ const App = () => {
             <Route path="/guidelines" element={<GuidelinePage />} />
             <Route path="/dashboard" element={<DashboardPage user={user} />} />
             <Route path="/profile" element={<ProfilePage user={user} onUpdate={setUser} />} />
+            <Route path="/chat" element={user ? <Chat user={user} /> : <Navigate to="/login" />} />
             <Route path="/admin" element={<AdminDashboard user={user} />} />
             <Route path="/login" element={<AuthPage type="login" />} />
             <Route path="/register" element={<AuthPage type="register" />} />
