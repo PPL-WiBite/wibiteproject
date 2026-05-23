@@ -65,16 +65,31 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/food');
-      const myFood = res.data.filter((f: any) => Number(f.donor_id) === Number(user.id));
+      const [resFood, resClaims] = await Promise.all([
+        api.get('/food'),
+        api.get('/donor/claims')
+      ]);
+      const myFood = resFood.data.filter((f: any) => Number(f.donor_id) === Number(user.id));
       setFoods(myFood);
-      const completed = myFood.filter((f: any) => f.status === 'completed');
+      
+      const completedClaims = resClaims.data.filter((c: any) => c.status === 'completed');
+      const totalFoodSaved = completedClaims.reduce((acc: number, c: any) => {
+        const foodPortions = c.food?.portions || 1;
+        const foodWeight = parseFloat(c.food?.weight_kg || '0');
+        const claimWeight = (c.portions / foodPortions) * foodWeight;
+        return acc + claimWeight;
+      }, 0);
+      const totalPeopleHelped = completedClaims.reduce((acc: number, c: any) => acc + (c.portions || 0), 0);
+
       setStats({
-        foodSaved: completed.reduce((acc: number, curr: any) => acc + (curr.weight_kg || 0), 0),
-        peopleHelped: completed.reduce((acc: number, curr: any) => acc + (curr.portions || 0), 0),
+        foodSaved: parseFloat(totalFoodSaved.toFixed(1)),
+        peopleHelped: totalPeopleHelped,
       });
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, [user]);
@@ -634,7 +649,7 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
           <div className="bg-emerald-600 text-white rounded-3xl p-8 md:p-10 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 blur-3xl rounded-full translate-x-1/3 -translate-y-1/3"></div>
             <div className="relative z-10 max-w-xl">
-              <h2 className="text-3xl font-black mb-3">Selamat Datang Kembali, Donatur!</h2>
+              <h2 className="text-3xl font-black mb-3">Selamat Datang Kembali, {user?.name || 'Donatur'}!</h2>
               <p className="text-emerald-100 font-medium text-sm leading-relaxed mb-6">
                 Terima kasih telah berkontribusi dalam gerakan mengurangi sisa makanan. Setiap porsi yang Anda bagikan berarti bagi bumi kita.
               </p>
