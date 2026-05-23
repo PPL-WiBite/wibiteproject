@@ -654,9 +654,9 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
                 </button>
               </div>
             </div>
-            <div className="w-44 h-44 shrink-0 bg-emerald-500/20 rounded-2xl flex items-center justify-center border border-emerald-400/20 relative overflow-hidden">
-              <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=300" alt="Fresh organic vegetables" className="w-full h-full object-cover opacity-80 mix-blend-overlay" />
-              <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/40 to-transparent"></div>
+            <div className="w-44 h-44 shrink-0 rounded-2xl flex items-center justify-center relative overflow-hidden border border-slate-100/10">
+              <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=300" alt="Fresh organic vegetables" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/30 to-transparent"></div>
             </div>
           </div>
 

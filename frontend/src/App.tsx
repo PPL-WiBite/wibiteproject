@@ -5,7 +5,7 @@ import {
   Heart, Search, LayoutDashboard, LogOut, MapPin, ChevronRight, TrendingUp,
   Globe, Leaf, Clock, X, CheckCircle2, Lock, Mail, MessageSquare,
   User as UserIcon, LogIn, Trash2, PlusCircle,
-  HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon
+  HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon, HelpCircle, Camera, Save
 } from 'lucide-react';
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
@@ -16,6 +16,8 @@ import MapPreview from '@/components/MapPreview';
 import Chat from '@/components/Chat';
 import ExploreMap from '@/components/ExploreMap';
 import DonationHistory from '@/components/DonationHistory';
+import HelpInfo from '@/components/HelpInfo';
+import MapPicker from '@/components/MapPicker';
 
 // --- Navbar ---
 const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout: () => void; onUserUpdate?: (user: User) => void }) => {
@@ -148,6 +150,13 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
                 title="Chat"
               >
                 <MessageSquare className="w-4.5 h-4.5" />
+              </Link>
+              <Link
+                to="/info"
+                className="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-emerald-100"
+                title="Info & Bantuan"
+              >
+                <HelpCircle className="w-4.5 h-4.5" />
               </Link>
               <button
                 onClick={onLogout}
@@ -1152,9 +1161,46 @@ const AddFoodModal = ({ onClose, onAdd }: { onClose: () => void; onAdd: (data: a
 
 // --- Profile Page ---
 const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User) => void }) => {
-  const [formData, setFormData] = useState({ name: user?.name || '', phone: user?.phone || '', address: user?.address || '' });
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    address: user?.address || '',
+  });
+
+  const localKey = `wibite_profile_${user?.id}`;
+  const [localData, setLocalData] = useState(() => {
+    const stored = localStorage.getItem(localKey);
+    return stored ? JSON.parse(stored) : {
+      avatar: '',
+      bio: '',
+      lat: -6.2088,
+      lng: 106.8456,
+    };
+  });
+
   const [loading, setLoading] = useState(false);
-  const [roleLoading, setRoleLoading] = useState<'donor' | 'receiver' | null>(null);
+  const [foodSaved, setFoodSaved] = useState(12); // default mock stat or from API
+  const [co2Saved, setCo2Saved] = useState(12);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchStats = async () => {
+      try {
+        const res = await api.get('/food');
+        const myFood = res.data.filter((f: any) => f.donor_id === user.id);
+        const completed = myFood.filter((f: any) => f.status === 'completed');
+        const saved = completed.reduce((acc: number, curr: any) => acc + (curr.weight_kg || 0), 0);
+        if (saved > 0) {
+          setFoodSaved(saved);
+          setCo2Saved(Math.round(saved * 1.0)); // e.g. 1kg saved = 1kg CO2 or whatever factor
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchStats();
+  }, [user]);
 
   if (!user) return <AuthPage type="login" />;
 
@@ -1162,146 +1208,248 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api.put('/users/profile', formData);
-      onUpdate(res.data);
+      const res = await api.put('/users/profile', {
+        name: formData.name,
+        address: formData.address,
+      });
+      // Save local fields
+      localStorage.setItem(localKey, JSON.stringify(localData));
+      // update context user
+      onUpdate({ ...res.data, email: formData.email }); // backend doesn't save email changes sometimes, but let's sync locally
       alert('Profil berhasil diperbarui!');
-    } catch (error) { console.error(error); }
-    finally { setLoading(false); }
-  };
-
-  const handleRoleChange = async (newRole: 'donor' | 'receiver') => {
-    if (user.role === newRole) return;
-    // Admin tidak bisa jadi donor/receiver biasa
-    if (user.role === 'admin') {
-      alert('Peran Admin tidak bisa diubah dari halaman ini.');
-      return;
-    }
-    setRoleLoading(newRole);
-    try {
-      const updated = await authService.updateRole(newRole);
-      onUpdate(updated);
     } catch (error) {
-      console.error('Gagal mengubah peran:', error);
-      alert('Gagal mengubah peran. Coba lagi.');
+      console.error(error);
+      alert('Gagal memperbarui profil.');
     } finally {
-      setRoleLoading(null);
+      setLoading(false);
     }
   };
 
-  const canSwitchRole = user.role === 'donor' || user.role === 'receiver';
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLocalData((prev: any) => ({ ...prev, avatar: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setLocalData((prev: any) => ({
+      ...prev,
+      avatar: ''
+    }));
+  };
 
   return (
-    <div className="pt-32 pb-20 px-4">
-      <div className="max-w-2xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-4xl font-black text-slate-900 mb-2">Profil Saya</h1>
-          <p className="text-slate-400 font-medium italic text-sm">Kelola data diri dan peran kamu di komunitas WiBite.</p>
+    <div className="pt-28 pb-20 bg-slate-50 min-h-screen">
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 grid md:grid-cols-4 gap-8">
+        {/* Sidebar Left */}
+        <div className="md:col-span-1 space-y-6">
+          <div>
+            <h1 className="text-2xl font-black text-slate-800 leading-tight">Pengaturan</h1>
+            <p className="text-xs text-slate-400 font-medium mt-1">Kelola akun Anda</p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              className="w-full px-4 py-3 bg-emerald-100/70 text-emerald-700 font-bold text-xs rounded-2xl flex items-center gap-3 text-left focus:outline-none transition-colors border border-emerald-200/10"
+            >
+              <UserIcon className="w-4 h-4" />
+              Profile
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/info')}
+              className="w-full px-4 py-3 text-slate-500 hover:bg-slate-100 hover:text-slate-700 font-bold text-xs rounded-2xl flex items-center gap-3 text-left focus:outline-none transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+              Help
+            </button>
+          </div>
+
+          <div className="pt-4">
+            <button
+              type="button"
+              onClick={() => navigate(user.role === 'donor' ? '/dashboard' : '/explore')}
+              className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md text-center"
+            >
+              Go to Dashboard
+            </button>
+          </div>
         </div>
 
+        {/* Form Right */}
+        <div className="md:col-span-3">
+          <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-xl space-y-6">
+            <div>
+              <h2 className="text-xl font-black text-slate-900 leading-tight">Pengaturan Profil</h2>
+              <p className="text-xs text-slate-400 font-medium mt-1">Perbarui informasi publik dan detail kontak Anda di sini.</p>
+            </div>
 
-        {/* Role Switcher */}
-        {canSwitchRole && (
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-50 shadow-sm">
-            <div className="flex items-start gap-3 mb-6">
-              <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
-                <HandHeart className="w-5 h-5 text-emerald-500" />
+            {/* Avatar Upload */}
+            <div className="flex items-center gap-6 py-4 border-b border-slate-50">
+              <div className="relative w-20 h-20 shrink-0">
+                {localData.avatar ? (
+                  <img
+                    src={localData.avatar}
+                    alt="Avatar Profile"
+                    className="w-full h-full object-cover rounded-full border-2 border-white shadow-md bg-slate-100"
+                  />
+                ) : (
+                  <div className="w-full h-full rounded-full border-2 border-slate-200 border-dashed bg-slate-50 flex items-center justify-center text-slate-400 shadow-inner">
+                    <UserIcon className="w-8 h-8" />
+                  </div>
+                )}
+                <label className="absolute bottom-0 right-0 w-7 h-7 bg-emerald-600 border-2 border-white rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-emerald-700 transition-colors">
+                  <Camera className="w-3.5 h-3.5" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-black text-slate-800">Foto Profil Anda</p>
+                <p className="text-[10px] text-slate-400 font-semibold">PNG atau JPG, maksimal 5MB.</p>
+                <div className="flex gap-2">
+                  <label className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer">
+                    Unggah Baru
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    className="px-3 py-1.5 border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold text-[10px] rounded-lg transition-colors"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Fields Grid */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Nama Lengkap</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Nama Lengkap Anda"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-bold text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500"
+                />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-900 leading-tight">Peran Saya</h3>
-                <p className="text-xs text-slate-400 font-medium mt-1">
-                  Pilih kamu ingin berkontribusi sebagai penerima atau pendonor makanan.
-                </p>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Alamat Email</label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="nama@email.com"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-bold text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500"
+                />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {/* Penerima */}
-              <button
-                type="button"
-                onClick={() => handleRoleChange('receiver')}
-                disabled={roleLoading !== null}
-                className={`relative p-5 rounded-2xl border-2 text-left transition-all disabled:opacity-60 disabled:cursor-not-allowed ${user.role === 'receiver'
-                  ? 'border-amber-500 bg-amber-50 shadow-lg shadow-amber-500/10'
-                  : 'border-slate-100 bg-white hover:border-amber-300 hover:bg-amber-50/30'
-                  }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors ${user.role === 'receiver' ? 'bg-amber-500 text-white' : 'bg-slate-50 text-slate-400'
-                    }`}
-                >
-                  <Utensils className="w-5 h-5" />
-                </div>
-                <p className={`text-sm font-black uppercase tracking-wider ${user.role === 'receiver' ? 'text-amber-700' : 'text-slate-900'}`}>
-                  Penerima
-                </p>
-                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
-                  Klaim makanan dari donatur
-                </p>
-                {user.role === 'receiver' && (
-                  <span className="absolute top-3 right-3 text-[9px] font-black text-amber-600 uppercase tracking-widest bg-white px-2 py-0.5 rounded-full border border-amber-200">
-                    Aktif
-                  </span>
-                )}
-                {roleLoading === 'receiver' && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm rounded-2xl">
-                    <Clock className="w-5 h-5 animate-spin text-amber-500" />
-                  </div>
-                )}
-              </button>
+            {/* Address */}
+            <div>
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Alamat</label>
+              <textarea
+                value={formData.address}
+                onChange={e => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Masukkan alamat lengkap Anda (Opsional)"
+                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-semibold text-xs text-slate-850 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 h-16 resize-none"
+              />
+            </div>
 
-              {/* Pendonor */}
+            {/* Leaflet Map Picker */}
+            <div className="space-y-1">
+              <div className="h-56 rounded-2xl overflow-hidden border border-slate-100 relative">
+                <MapPicker
+                  initialLat={localData.lat}
+                  initialLng={localData.lng}
+                  initialAddress={formData.address}
+                  onCoordinatePicked={(lat, lng, address) => {
+                    setLocalData((prev: any) => ({ ...prev, lat, lng }));
+                    setFormData((prev: any) => ({ ...prev, address }));
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-1.5 text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-2">
+                <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-pulse"></span>
+                Lokasi Terkunci
+              </div>
+            </div>
+
+            {/* Bio */}
+            <div>
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Bio</label>
+              <textarea
+                maxLength={160}
+                value={localData.bio}
+                onChange={e => setLocalData((prev: any) => ({ ...prev, bio: e.target.value }))}
+                placeholder="Ceritakan sedikit tentang diri Anda atau misi donasi Anda..."
+                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-semibold text-xs text-slate-850 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 h-24 resize-none"
+              />
+              <div className="text-right text-[10px] text-slate-450 font-bold mt-1">
+                {localData.bio.length}/160 karakter
+              </div>
+            </div>
+
+            {/* Submit & Cancel */}
+            <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
               <button
                 type="button"
-                onClick={() => handleRoleChange('donor')}
-                disabled={roleLoading !== null}
-                className={`relative p-5 rounded-2xl border-2 text-left transition-all disabled:opacity-60 disabled:cursor-not-allowed ${user.role === 'donor'
-                  ? 'border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/10'
-                  : 'border-slate-100 bg-white hover:border-emerald-300 hover:bg-emerald-50/30'
-                  }`}
+                onClick={() => {
+                  setFormData({ name: user.name || '', email: user.email || '', address: user.address || '' });
+                  const stored = localStorage.getItem(localKey);
+                  if (stored) setLocalData(JSON.parse(stored));
+                }}
+                className="px-6 py-2.5 border border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-colors"
               >
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors ${user.role === 'donor' ? 'bg-emerald-500 text-white' : 'bg-slate-50 text-slate-400'
-                    }`}
-                >
-                  <HandHeart className="w-5 h-5" />
-                </div>
-                <p className={`text-sm font-black uppercase tracking-wider ${user.role === 'donor' ? 'text-emerald-700' : 'text-slate-900'}`}>
-                  Pendonor
-                </p>
-                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
-                  Bagikan makanan berlebih
-                </p>
-                {user.role === 'donor' && (
-                  <span className="absolute top-3 right-3 text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-white px-2 py-0.5 rounded-full border border-emerald-200">
-                    Aktif
-                  </span>
-                )}
-                {roleLoading === 'donor' && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm rounded-2xl">
-                    <Clock className="w-5 h-5 animate-spin text-emerald-500" />
-                  </div>
-                )}
+                Batalkan
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2"
+              >
+                <Save className="w-3.5 h-3.5" />
+                {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
               </button>
             </div>
-          </div>
-        )}
+          </form>
+        </div>
 
-        {/* Form Data Diri */}
-        <form onSubmit={handleSubmit} className="bg-white p-10 rounded-[3rem] border border-slate-50 shadow-sm space-y-6">
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Nama</label>
-            <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
+        {/* Bottom Banner */}
+        <div className="md:col-span-4 bg-emerald-50 border border-emerald-100/70 rounded-2xl p-5 flex items-center justify-between shadow-sm mt-4">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0 border border-emerald-200/50">
+              <Leaf className="w-5 h-5 fill-emerald-200/50" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-slate-800 leading-tight">Dampak Anda Sejauh Ini</p>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Anda telah menyelamatkan {foodSaved}kg makanan!</p>
+            </div>
           </div>
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Telepon</label>
-            <input type="text" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold" />
+          <div className="text-right">
+            <span className="text-2xl font-black text-emerald-700">{co2Saved}</span>
+            <span className="text-[10px] font-black text-emerald-600 ml-1 uppercase tracking-wider">Kg CO2</span>
           </div>
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Alamat</label>
-            <textarea value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-bold h-32 resize-none" />
-          </div>
-          <button type="submit" disabled={loading} className="w-full bg-emerald-500 text-white font-black py-4 rounded-xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 disabled:opacity-50">{loading ? 'Menyimpan...' : 'Simpan'}</button>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -1423,6 +1571,7 @@ const App = () => {
             <Route path="/explore" element={<ExplorePage user={user} />} />
             <Route path="/forum" element={<ForumPage user={user} />} />
             <Route path="/guidelines" element={<GuidelinePage />} />
+            <Route path="/info" element={<HelpInfo />} />
             <Route path="/dashboard" element={<DashboardPage user={user} onAuthSuccess={setUser} />} />
             <Route path="/history" element={user ? <DonationHistory user={user} /> : <Navigate to="/login" />} />
             <Route path="/profile" element={<ProfilePage user={user} onUpdate={setUser} />} />
