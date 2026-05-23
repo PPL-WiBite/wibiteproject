@@ -19,6 +19,7 @@ import DonationHistory from '@/components/DonationHistory';
 import ClaimsPage from '@/components/Claims';
 import HelpInfo from '@/components/HelpInfo';
 import MapPicker from '@/components/MapPicker';
+import RatebackPage from '@/components/Rateback';
 
 // --- Navbar ---
 const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout: () => void; onUserUpdate?: (user: User) => void }) => {
@@ -1346,6 +1347,22 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
             </button>
             <button
               type="button"
+              onClick={() => navigate('/donasi')}
+              className="w-full px-4 py-3 text-slate-500 hover:bg-slate-100 hover:text-slate-700 font-bold text-xs rounded-2xl flex items-center gap-3 text-left focus:outline-none transition-colors"
+            >
+              <HandHeart className="w-4 h-4" />
+              Donasi
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/rateback')}
+              className="w-full px-4 py-3 text-slate-500 hover:bg-slate-100 hover:text-slate-700 font-bold text-xs rounded-2xl flex items-center gap-3 text-left focus:outline-none transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Rating dan Feedback
+            </button>
+            <button
+              type="button"
               onClick={() => navigate('/info')}
               className="w-full px-4 py-3 text-slate-500 hover:bg-slate-100 hover:text-slate-700 font-bold text-xs rounded-2xl flex items-center gap-3 text-left focus:outline-none transition-colors"
             >
@@ -1706,6 +1723,7 @@ const App = () => {
             <Route path="/profile" element={<ProfilePage user={user} onUpdate={setUser} />} />
             <Route path="/chat" element={user ? <Chat user={user} /> : <Navigate to="/login" />} />
             <Route path="/klaim" element={user ? <ClaimsPage user={user} /> : <Navigate to="/login" />} />
+            <Route path="/rateback" element={user ? <RatebackPage user={user} /> : <Navigate to="/login" />} />
             <Route path="/admin" element={<AdminDashboard user={user} />} />
             <Route path="/login" element={<AuthPage type="login" onAuthSuccess={setUser} />} />
             <Route path="/register" element={<AuthPage type="register" onAuthSuccess={setUser} />} />
