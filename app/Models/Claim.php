@@ -14,6 +14,9 @@ class Claim extends Model
         'food_id',
         'receiver_id',
         'status',
+        'pickup_time',
+        'portions',
+        'code',
     ];
 
     public function food(): BelongsTo

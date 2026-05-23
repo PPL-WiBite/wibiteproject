@@ -16,6 +16,7 @@ import MapPreview from '@/components/MapPreview';
 import Chat from '@/components/Chat';
 import ExploreMap from '@/components/ExploreMap';
 import DonationHistory from '@/components/DonationHistory';
+import ClaimsPage from '@/components/Claims';
 import HelpInfo from '@/components/HelpInfo';
 import MapPicker from '@/components/MapPicker';
 
@@ -57,6 +58,8 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
     }
   };
 
+  if (location.pathname === '/chat') return null;
+
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-5'
@@ -81,12 +84,20 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
                 )}
               </Link>
             ) : (
-              <Link to="/explore" className={navLinkClass('/explore')}>
-                Cari Makanan
-                {location.pathname === '/explore' && (
-                  <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-                )}
-              </Link>
+              <>
+                <Link to="/explore" className={navLinkClass('/explore')}>
+                  Cari Makanan
+                  {location.pathname === '/explore' && (
+                    <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+                  )}
+                </Link>
+                <Link to="/klaim" className={navLinkClass('/klaim')}>
+                  Klaim Saya
+                  {location.pathname === '/klaim' && (
+                    <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+                  )}
+                </Link>
+              </>
             )}
             <Link to="/forum" className={navLinkClass('/forum')}>
               Forum
@@ -396,6 +407,15 @@ const ExplorePage = ({ user }: { user: User | null }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFood, setSelectedFood] = useState<any>(null);
+  const [pickupTime, setPickupTime] = useState<string>('');
+  const [claimPortions, setClaimPortions] = useState<number>(1);
+
+  useEffect(() => {
+    if (selectedFood) {
+      setPickupTime('');
+      setClaimPortions(1);
+    }
+  }, [selectedFood]);
   const [smartMatching, setSmartMatching] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedCity, setSelectedCity] = useState<string>('');
@@ -497,10 +517,11 @@ const ExplorePage = ({ user }: { user: User | null }) => {
 
   useEffect(() => { fetchFood(); }, []);
 
-  const handleClaim = async (foodId: number) => {
+  const handleClaim = async (foodId: number, pickupTime: string, portions: number) => {
     if (!user) return alert('Silakan masuk untuk mengklaim makanan.');
+    if (!pickupTime) return alert('Silakan pilih waktu penjemputan terlebih dahulu.');
     try {
-      await api.post('/claim', { food_id: foodId });
+      await api.post('/claim', { food_id: foodId, pickup_time: pickupTime, portions });
       alert('Klaim berhasil! Koordinasikan penjemputan di Dashboard.');
       setSelectedFood(null);
       fetchFood();
@@ -630,28 +651,7 @@ const ExplorePage = ({ user }: { user: User | null }) => {
             )}
           </div>
 
-          <div className="hidden md:block w-px h-8 bg-slate-100 shrink-0" />
 
-          {/* Smart Matching Toggle */}
-          <div className="flex items-center gap-3 px-4 py-2 shrink-0 w-full md:w-auto justify-between md:justify-start">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Smart Matching</span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleSmartMatching}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  smartMatching ? 'bg-emerald-500' : 'bg-slate-200'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    smartMatching ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-              <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">(Terdekat)</span>
-            </div>
-          </div>
 
           <button className="w-full md:w-auto px-8 py-3.5 bg-emerald-500 text-white font-black text-sm uppercase tracking-widest rounded-2xl hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/25 shrink-0">
             Cari
@@ -704,7 +704,7 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                     <div className="flex justify-between items-start gap-4 mb-3">
                       <h3 className="text-xl font-extrabold text-slate-800 leading-tight group-hover:text-emerald-600 transition-colors line-clamp-2">{food.name}</h3>
                       <div className="text-right shrink-0">
-                        <p className="text-emerald-600 font-black text-sm">{food.portions} Porsi</p>
+                        <p className="text-emerald-600 font-black text-sm">{food.portions - food.claimed_portions} Porsi</p>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tersedia</p>
                       </div>
                     </div>
@@ -846,6 +846,78 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                     </p>
                   </div>
                 </div>
+                {/* Portions Selector Section */}
+                <div className="mb-6 bg-slate-50 border border-slate-100 p-6 rounded-[2rem]">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      Jumlah Porsi
+                    </span>
+                    <span className="text-emerald-600 font-extrabold text-xs">
+                      Tersedia: {selectedFood.portions - selectedFood.claimed_portions} Porsi
+                    </span>
+                  </div>
+                  
+                  <label className="block text-xs font-black text-slate-700 mb-2">
+                    Berapa porsi yang ingin Anda klaim?
+                  </label>
+                  
+                  <input
+                    type="number"
+                    min="1"
+                    max={selectedFood.portions - selectedFood.claimed_portions}
+                    value={claimPortions}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 1;
+                      const maxVal = selectedFood.portions - selectedFood.claimed_portions;
+                      setClaimPortions(Math.max(1, Math.min(val, maxVal)));
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  />
+                </div>
+
+                {/* Request Pick-up Time Section */}
+                <div className="mb-6 bg-blue-50/40 border border-blue-100/50 p-6 rounded-[2rem]">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      Request Pick-up
+                    </span>
+                    <Clock className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  
+                  <label className="block text-xs font-black text-slate-700 mb-2">
+                    Pilih Waktu Penjemputan
+                  </label>
+                  
+                  <div className="relative">
+                    <input
+                      type="datetime-local"
+                      value={pickupTime}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val) {
+                          const selectedTime = new Date(val);
+                          const limitTime = new Date(selectedFood.expired_date);
+                          if (selectedTime > limitTime) {
+                            alert("Waktu penjemputan tidak boleh melebihi batas waktu pengambilan!");
+                            setPickupTime('');
+                          } else if (selectedTime < new Date()) {
+                            alert("Waktu penjemputan tidak boleh di masa lampau!");
+                            setPickupTime('');
+                          } else {
+                            setPickupTime(val);
+                          }
+                        } else {
+                          setPickupTime('');
+                        }
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    />
+                  </div>
+                  
+                  <span className="block text-[10px] font-medium text-slate-400 mt-2 italic">
+                    Silakan pilih waktu sebelum batas waktu pengambilan.
+                  </span>
+                </div>
 
                 <div className="mb-8 flex-grow">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
@@ -868,7 +940,18 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                   <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
                     <MessageSquare className="w-4 h-4" /> Chat
                   </button>
-                  <button onClick={() => handleClaim(selectedFood.id)} className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center">Klaim Makanan</button>
+                  <button
+                    onClick={() => {
+                      if (!pickupTime) {
+                        alert("Silakan pilih waktu penjemputan terlebih dahulu.");
+                        return;
+                      }
+                      handleClaim(selectedFood.id, pickupTime, claimPortions);
+                    }}
+                    className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center"
+                  >
+                    Klaim Makanan
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -1188,7 +1271,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
     const fetchStats = async () => {
       try {
         const res = await api.get('/food');
-        const myFood = res.data.filter((f: any) => f.donor_id === user.id);
+        const myFood = res.data.filter((f: any) => Number(f.donor_id) === Number(user.id));
         const completed = myFood.filter((f: any) => f.status === 'completed');
         const saved = completed.reduce((acc: number, curr: any) => acc + (curr.weight_kg || 0), 0);
         if (saved > 0) {
@@ -1545,8 +1628,54 @@ const App = () => {
     loadUser();
   }, []);
 
+  useEffect(() => {
+    if (!loading) {
+      if (user) {
+        const savedUserId = localStorage.getItem('wibite_user_id');
+        if (savedUserId && savedUserId !== String(user.id)) {
+          // Logged in user changed or DB reset, clear local chat data
+          localStorage.removeItem('wibite_conversations');
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('wibite_msgs_')) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+        }
+        localStorage.setItem('wibite_user_id', String(user.id));
+      } else {
+        // No user logged in, clear chat storage
+        localStorage.removeItem('wibite_user_id');
+        localStorage.removeItem('wibite_conversations');
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('wibite_msgs_')) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+      }
+    }
+  }, [user, loading]);
+
   const handleLogout = async () => {
     await authService.logout();
+    
+    // Clear chat storage for security and privacy
+    localStorage.removeItem('wibite_user_id');
+    localStorage.removeItem('wibite_conversations');
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('wibite_msgs_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
     setUser(null);
     window.location.href = '/';
   };
@@ -1576,6 +1705,7 @@ const App = () => {
             <Route path="/history" element={user ? <DonationHistory user={user} /> : <Navigate to="/login" />} />
             <Route path="/profile" element={<ProfilePage user={user} onUpdate={setUser} />} />
             <Route path="/chat" element={user ? <Chat user={user} /> : <Navigate to="/login" />} />
+            <Route path="/klaim" element={user ? <ClaimsPage user={user} /> : <Navigate to="/login" />} />
             <Route path="/admin" element={<AdminDashboard user={user} />} />
             <Route path="/login" element={<AuthPage type="login" onAuthSuccess={setUser} />} />
             <Route path="/register" element={<AuthPage type="register" onAuthSuccess={setUser} />} />

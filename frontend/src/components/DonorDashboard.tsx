@@ -66,7 +66,7 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
     setLoading(true);
     try {
       const res = await api.get('/food');
-      const myFood = res.data.filter((f: any) => f.donor_id === user.id);
+      const myFood = res.data.filter((f: any) => Number(f.donor_id) === Number(user.id));
       setFoods(myFood);
       const completed = myFood.filter((f: any) => f.status === 'completed');
       setStats({

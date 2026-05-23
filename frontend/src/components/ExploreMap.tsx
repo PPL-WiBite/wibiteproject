@@ -104,7 +104,7 @@ export default function ExploreMap({ foods, selectedCity, onSelectFood }: Explor
       popupDiv.className = 'p-1 font-sans text-xs';
       popupDiv.innerHTML = `
         <strong class="text-slate-900 block font-bold text-sm">${food.name}</strong>
-        <span class="text-emerald-600 font-extrabold block mt-0.5">${food.portions} Porsi (${food.category || 'Makanan'})</span>
+        <span class="text-emerald-600 font-extrabold block mt-0.5">${food.portions - food.claimed_portions} Porsi (${food.category || 'Makanan'})</span>
         <span class="text-slate-400 block mt-1 truncate max-w-[200px]">${food.pickup_address}</span>
         <button class="mt-2.5 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-2.5 rounded text-[10px] transition-colors cursor-pointer">
           Lihat Detail

@@ -17,6 +17,13 @@ export default function ReceiverDashboard({ user }: ReceiverDashboardProps) {
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [selectedFood, setSelectedFood] = useState<any>(null);
+  const [pickupTime, setPickupTime] = useState<string>('');
+
+  useEffect(() => {
+    if (selectedFood) {
+      setPickupTime('');
+    }
+  }, [selectedFood]);
   const [visibleCount, setVisibleCount] = useState(6);
   const cities = ['Semua Kota', 'Jakarta', 'Denpasar', 'Surabaya', 'Bandung', 'Yogyakarta', 'Medan', 'Makassar'];
   const navigate = useNavigate();
@@ -42,9 +49,10 @@ export default function ReceiverDashboard({ user }: ReceiverDashboardProps) {
 
   useEffect(() => { fetchData(); }, [user]);
 
-  const handleClaim = async (foodId: number) => {
+  const handleClaim = async (foodId: number, pickupTime: string) => {
+    if (!pickupTime) return alert('Silakan pilih waktu penjemputan terlebih dahulu.');
     try {
-      await api.post('/claim', { food_id: foodId });
+      await api.post('/claim', { food_id: foodId, pickup_time: pickupTime });
       alert('Klaim berhasil! Koordinasikan penjemputan di Dashboard.');
       setSelectedFood(null);
       fetchData();
@@ -345,7 +353,7 @@ export default function ReceiverDashboard({ user }: ReceiverDashboardProps) {
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <span className="text-xs text-slate-400 font-semibold block mb-1">Jumlah Porsi</span>
-                    <span className="text-sm font-bold text-slate-800">{selectedFood.portions} Porsi</span>
+                    <span className="text-sm font-bold text-slate-800">{selectedFood.portions - selectedFood.claimed_portions} Porsi</span>
                   </div>
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <span className="text-xs text-slate-400 font-semibold block mb-1">Berat</span>
@@ -364,6 +372,50 @@ export default function ReceiverDashboard({ user }: ReceiverDashboardProps) {
                       Ambil sebelum: {new Date(selectedFood.expired_date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                     </p>
                   </div>
+                </div>
+
+                {/* Request Pick-up Time Section */}
+                <div className="mb-6 bg-blue-50/40 border border-blue-100/50 p-6 rounded-2xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      Request Pick-up
+                    </span>
+                    <Clock className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  
+                  <label className="block text-xs font-black text-slate-700 mb-2">
+                    Pilih Waktu Penjemputan
+                  </label>
+                  
+                  <div className="relative">
+                    <input
+                      type="datetime-local"
+                      value={pickupTime}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val) {
+                          const selectedTime = new Date(val);
+                          const limitTime = new Date(selectedFood.expired_date);
+                          if (selectedTime > limitTime) {
+                            alert("Waktu penjemputan tidak boleh melebihi batas waktu pengambilan!");
+                            setPickupTime('');
+                          } else if (selectedTime < new Date()) {
+                            alert("Waktu penjemputan tidak boleh di masa lampau!");
+                            setPickupTime('');
+                          } else {
+                            setPickupTime(val);
+                          }
+                        } else {
+                          setPickupTime('');
+                        }
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    />
+                  </div>
+                  
+                  <span className="block text-[10px] font-medium text-slate-400 mt-2 italic">
+                    Silakan pilih waktu sebelum batas waktu pengambilan.
+                  </span>
                 </div>
 
                 {selectedFood.lat && selectedFood.lng && (
@@ -386,7 +438,13 @@ export default function ReceiverDashboard({ user }: ReceiverDashboardProps) {
                 {/* Action Buttons */}
                 <div className="flex gap-3 mt-auto">
                   <button
-                    onClick={() => handleClaim(selectedFood.id)}
+                    onClick={() => {
+                      if (!pickupTime) {
+                        alert("Silakan pilih waktu penjemputan terlebih dahulu.");
+                        return;
+                      }
+                      handleClaim(selectedFood.id, pickupTime);
+                    }}
                     className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-colors text-center"
                   >
                     Klaim Makanan
