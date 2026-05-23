@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, Navigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Heart, Search, LayoutDashboard, LogOut, MapPin, ChevronRight, TrendingUp,
@@ -14,11 +14,15 @@ import DonorDashboard from '@/components/DonorDashboard';
 import ReceiverDashboard from '@/components/ReceiverDashboard';
 import MapPreview from '@/components/MapPreview';
 import Chat from '@/components/Chat';
+import ExploreMap from '@/components/ExploreMap';
+import DonationHistory from '@/components/DonationHistory';
 
 // --- Navbar ---
-const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
+const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout: () => void; onUserUpdate?: (user: User) => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [roleLoading, setRoleLoading] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
@@ -27,10 +31,29 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
   }, []);
 
   const navLinkClass = (path: string) =>
-    `px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${location.pathname === path
-      ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/20'
-      : 'text-slate-500 hover:bg-white hover:text-emerald-500'
+    `px-4 py-2.5 text-sm font-black transition-all relative uppercase tracking-widest ${location.pathname === path
+      ? 'text-emerald-600'
+      : 'text-slate-500 hover:text-emerald-600'
     }`;
+
+  const handleRoleToggle = async (newRole: 'donor' | 'receiver') => {
+    if (!user || user.role === newRole || roleLoading) return;
+    setRoleLoading(true);
+    try {
+      const updated = await authService.updateRole(newRole);
+      if (onUserUpdate) onUserUpdate(updated);
+      if (newRole === 'donor') {
+        navigate('/dashboard');
+      } else {
+        navigate('/explore');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Gagal mengganti peran.');
+    } finally {
+      setRoleLoading(false);
+    }
+  };
 
   return (
     <nav
@@ -39,36 +62,71 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
     >
       <div className="w-full px-6 lg:px-10 relative flex items-center justify-between">
         {/* KIRI: Logo */}
-        <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-          <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-emerald-500/20">
-            W
-          </div>
-          <span className="text-xl font-bold text-slate-900 tracking-tight">wibite</span>
+        <Link to="/" className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-2xl font-black tracking-tight text-emerald-600">
+            Wi<span className="text-emerald-700 font-extrabold">Bite</span>
+          </span>
         </Link>
 
         {/* TENGAH: Nav menu (absolute, benar-benar rata tengah) */}
-        <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center bg-slate-50/80 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-100 gap-1">
-          {user?.role === 'donor' ? (
-            <Link to="/dashboard" className={navLinkClass('/dashboard')}>Donasi Makanan</Link>
-          ) : (
-            <Link to="/explore" className={navLinkClass('/explore')}>Cari Makanan</Link>
-          )}
-          <Link to="/forum" className={navLinkClass('/forum')}>Forum</Link>
-          <Link to="/guidelines" className={navLinkClass('/guidelines')}>Pedoman</Link>
-        </div>
+        {user && (
+          <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-4">
+            {user.role === 'donor' ? (
+              <Link to="/dashboard" className={navLinkClass('/dashboard')}>
+                Donasi Makanan
+                {location.pathname === '/dashboard' && (
+                  <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+                )}
+              </Link>
+            ) : (
+              <Link to="/explore" className={navLinkClass('/explore')}>
+                Cari Makanan
+                {location.pathname === '/explore' && (
+                  <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+                )}
+              </Link>
+            )}
+            <Link to="/forum" className={navLinkClass('/forum')}>
+              Forum
+              {location.pathname === '/forum' && (
+                <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+              )}
+            </Link>
+          </div>
+        )}
 
         {/* KANAN: Auth / User menu */}
         <div className="flex items-center gap-3 flex-shrink-0">
           {user ? (
             <>
-              {user.role === 'donor' && (
-                <Link
-                  to="/dashboard?add=1"
-                  className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-white bg-emerald-500 px-4 py-2.5 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
-                >
-                  <PlusCircle className="w-3.5 h-3.5" /> Donasi Makanan
-                </Link>
+              {/* Role Switcher Pill */}
+              {(user.role === 'donor' || user.role === 'receiver') && (
+                <div className="flex bg-slate-100 rounded-full p-0.5 border border-slate-200 shrink-0">
+                  <button
+                    onClick={() => handleRoleToggle('receiver')}
+                    disabled={roleLoading}
+                    className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${
+                      user.role === 'receiver'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Penerima
+                  </button>
+                  <button
+                    onClick={() => handleRoleToggle('donor')}
+                    disabled={roleLoading}
+                    className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${
+                      user.role === 'donor'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Donatur
+                  </button>
+                </div>
               )}
+
               {user.role === 'admin' && (
                 <Link
                   to="/admin"
@@ -79,18 +137,17 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
               )}
               <Link
                 to="/profile"
-                className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
+                className="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-emerald-100"
                 title="Profil"
               >
-                <UserIcon className="w-4 h-4 text-slate-600" />
+                <UserIcon className="w-4.5 h-4.5" />
               </Link>
               <Link
                 to="/chat"
-                className="relative p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
+                className="relative p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-emerald-100"
                 title="Chat"
               >
-                <MessageSquare className="w-4 h-4 text-slate-600" />
-                {/* <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 border border-slate-50 rounded-full animate-pulse"></span> */}
+                <MessageSquare className="w-4.5 h-4.5" />
               </Link>
               <button
                 onClick={onLogout}
@@ -123,59 +180,168 @@ const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void })
 
 // --- Landing Page ---
 const LandingPage = () => (
-  <div className="pt-20">
-    <section className="relative py-20 px-4 overflow-hidden">
-      <div className="absolute top-0 right-0 -z-10 w-1/3 h-1/3 bg-emerald-100/50 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2"></div>
-      <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
-        <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-          <span className="inline-block px-4 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full mb-6 tracking-wide uppercase">Dukung SDGs 12: Konsumsi & Produksi Bertanggung Jawab</span>
-          <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 leading-[1.1] mb-6">
-            Temukan Makanan di <span className="text-emerald-500 italic">Sekitarmu</span>.
-          </h1>
-          <p className="text-lg text-slate-600 mb-10 leading-relaxed max-w-lg">
-            Kurangi sisa makanan dengan berbagi kepada sesama. WiBite menghubungkan donatur makanan berlebih dengan kamu yang membutuhkan.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <Link to="/explore" className="px-8 py-4 bg-emerald-500 text-white font-bold rounded-2xl flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/30">
-              Cari Makanan <ChevronRight className="w-5 h-5" />
-            </Link>
-            <Link to="/register" className="px-8 py-4 bg-white text-slate-900 border border-slate-200 font-bold rounded-2xl hover:bg-slate-50 transition-all">
-              Mulai Berbagi
-            </Link>
-          </div>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="relative">
-          <img src="https://images.unsplash.com/photo-1593113598332-cd288d649433?w=800&q=80" alt="Berbagi Makanan" className="rounded-3xl shadow-2xl z-20 relative" />
-          <div className="absolute -bottom-6 -left-6 bg-white p-6 rounded-2xl shadow-xl z-30 flex items-center gap-4">
-            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-              <Heart className="w-6 h-6 text-amber-500 fill-amber-500" />
+  <div className="pt-20 bg-slate-50">
+    {/* ===== HERO SECTION ===== */}
+    <section className="relative overflow-hidden">
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 py-16 md:py-20">
+        <div className="grid md:grid-cols-2 gap-12 items-center">
+          {/* Left: Text Content */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+            <span className="inline-block px-4 py-1.5 bg-emerald-700 text-emerald-100 text-xs font-semibold rounded-full mb-6 tracking-wide">
+              SDG 12: Konsumsi Bertanggung Jawab
+            </span>
+            <h1 className="text-4xl md:text-5xl font-black text-slate-900 leading-[1.15] mb-5">
+              Selamatkan Makanan,{'\n'}
+              <span className="text-emerald-600">Bantu Sesama.</span>
+            </h1>
+            <p className="text-slate-500 text-base leading-relaxed mb-8 max-w-md">
+              WiBite menghubungkan kelebihan makanan Anda dengan mereka yang membutuhkan. Bersama kita kurangi limbah pangan untuk masa depan yang lebih hijau dan berkelanjutan.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link to="/register" className="px-7 py-3.5 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/25">
+                Mulai Donasi
+              </Link>
+              <Link to="/explore" className="px-7 py-3.5 bg-white text-emerald-700 border-2 border-emerald-200 font-bold text-sm rounded-xl hover:bg-emerald-50 transition-all">
+                Cari Makanan
+              </Link>
             </div>
-            <div>
-              <p className="text-sm font-bold text-slate-900">12,500+ Porsi</p>
-              <p className="text-xs text-slate-500 font-medium">Telah terselamatkan</p>
+          </motion.div>
+
+          {/* Right: Image with floating card */}
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.2 }} className="relative">
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl">
+              <img
+                src="https://images.unsplash.com/photo-1593113598332-cd288d649433?w=800&q=80"
+                alt="Relawan mendistribusikan makanan"
+                className="w-full h-[380px] object-cover"
+              />
+            </div>
+            {/* Floating Stats Card */}
+            <div className="absolute -bottom-6 -left-4 md:-left-6 bg-white p-5 rounded-2xl shadow-xl z-30 flex items-center gap-4 border border-slate-100">
+              <div className="w-11 h-11 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+                <Heart className="w-5 h-5 text-amber-500 fill-amber-500" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-slate-900">12,500+ Porsi</p>
+                <p className="text-xs text-slate-500 font-medium">Telah terselamatkan</p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+
+    {/* ===== IMPACT STATS SECTION ===== */}
+    <section id="dampak" className="py-20 bg-blue-50/50">
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 text-center">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-3">Kontribusi Kita Bersama</h2>
+          <p className="text-slate-500 text-sm font-medium mb-14 max-w-md mx-auto">
+            Setiap aksi kecil berdampak besar bagi bumi dan sesama
+          </p>
+        </motion.div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {[
+            { value: '10,000+', unit: 'Kg', label: 'Kg Makanan Terselamatkan', icon: '🌿' },
+            { value: '50,000+', unit: '', label: 'Porsi Makanan', icon: '🍽️' },
+            { value: '15,000', unit: 'Kg', label: 'Kg CO2 Dikurangi', icon: '🌍' },
+          ].map((stat, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
+              className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center hover:shadow-md transition-shadow">
+              <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-5">
+                {stat.icon}
+              </div>
+              <p className="text-3xl font-black text-slate-900 mb-1">{stat.value} {stat.unit}</p>
+              <p className="text-slate-500 text-sm font-medium">{stat.label}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    {/* ===== HOW IT WORKS SECTION ===== */}
+    <section id="cara-kerja" className="py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 text-center">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-14">Mulai Dalam 3 Langkah</h2>
+        </motion.div>
+
+        <div className="grid md:grid-cols-3 gap-10">
+          {[
+            {
+              step: 1,
+              icon: '📋',
+              title: 'Daftar & Posting',
+              desc: 'Daftar akun dan unggah foto makanan layak konsumsi yang ingin didonasikan.',
+            },
+            {
+              step: 2,
+              icon: '🤝',
+              title: 'Matching',
+              desc: 'Donasi Anda akan langsung terdaftar di sistem dan dapat ditemukan oleh penerima manfaat terdekat melalui peta lokasi.',
+            },
+            {
+              step: 3,
+              icon: '🚚',
+              title: 'Distribusi',
+              desc: 'Relawan atau penerima akan mengambil makanan sesuai jadwal yang ditentukan.',
+            },
+          ].map((item, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.15 }}
+              className="flex flex-col items-center text-center">
+              <div className="relative mb-6">
+                <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-3xl">
+                  {item.icon}
+                </div>
+                <div className="absolute -top-2 -right-2 w-7 h-7 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md">
+                  {item.step}
+                </div>
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2 italic">{item.title}</h3>
+              <p className="text-slate-500 text-sm leading-relaxed max-w-[280px]">{item.desc}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    {/* ===== TESTIMONIAL SECTION ===== */}
+    <section className="py-20 bg-slate-50">
+      <div className="max-w-3xl mx-auto px-6 lg:px-10 text-center">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <p className="text-emerald-600 text-6xl font-serif mb-6">"</p>
+          <blockquote className="text-lg md:text-xl font-semibold text-slate-700 leading-relaxed italic mb-8">
+            "Melalui WiBite, kami bisa berkontribusi langsung mengurangi limbah makanan. Sangat mudah digunakan dan dampaknya nyata terasa bagi orang sekitar."
+          </blockquote>
+
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-11 h-11 bg-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+              W
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-bold text-emerald-700 italic">Kania</p>
+              <p className="text-xs text-slate-400 font-medium">Project Manager</p>
             </div>
           </div>
         </motion.div>
       </div>
     </section>
-    <section className="py-24 bg-white">
-      <div className="max-w-7xl mx-auto px-4 text-center">
-        <h2 className="text-3xl font-bold mb-16">Mengapa Bergabung dengan <span className="text-emerald-500 italic">WiBite</span>?</h2>
-        <div className="grid md:grid-cols-3 gap-12">
-          {[
-            { icon: Leaf, title: "Kurangi Food Waste", desc: "Setiap porsi yang dibagikan mengurangi beban limbah pada ekosistem kita." },
-            { icon: Globe, title: "Bantu Komunitas", desc: "Membantu mereka yang membutuhkan di sekitarmu dengan akses makanan layak." },
-            { icon: TrendingUp, title: "Lacak Impact-mu", desc: "Lihat statistik kontribusimu terhadap penyelamatan makanan dan emisi karbon." }
-          ].map((item, i) => (
-            <motion.div key={i} whileHover={{ y: -5 }} className="p-8 rounded-3xl border border-slate-100 hover:border-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/5 transition-all text-center flex flex-col items-center">
-              <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 mb-6">
-                <item.icon className="w-7 h-7" />
-              </div>
-              <h3 className="text-xl font-bold mb-4">{item.title}</h3>
-              <p className="text-slate-600 leading-relaxed text-sm">{item.desc}</p>
-            </motion.div>
-          ))}
-        </div>
+
+    {/* ===== CTA SECTION ===== */}
+    <section className="py-20 bg-emerald-800">
+      <div className="max-w-3xl mx-auto px-6 lg:px-10 text-center">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
+            Siap Membuat Perubahan?
+          </h2>
+          <p className="text-emerald-200 text-sm font-medium mb-8 italic max-w-md mx-auto">
+            Jadilah bagian dari revolusi pangan berkelanjutan di Indonesia.
+          </p>
+          <Link to="/register" className="inline-block px-10 py-4 bg-white text-emerald-800 font-bold text-sm rounded-xl hover:bg-emerald-50 transition-all shadow-lg">
+            Daftar Sekarang
+          </Link>
+        </motion.div>
       </div>
     </section>
   </div>
@@ -221,6 +387,92 @@ const ExplorePage = ({ user }: { user: User | null }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFood, setSelectedFood] = useState<any>(null);
+  const [smartMatching, setSmartMatching] = useState(false);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [showCityDropdown, setShowCityDropdown] = useState<boolean>(false);
+  const cities = ['Semua Kota', 'Jakarta', 'Denpasar', 'Surabaya', 'Bandung', 'Yogyakarta', 'Medan', 'Makassar'];
+  const navigate = useNavigate();
+
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+  };
+
+  const toggleSmartMatching = () => {
+    if (!smartMatching) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserCoords({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            });
+            setSmartMatching(true);
+          },
+          (error) => {
+            console.error(error);
+            // Fallback to default coordinates (Jakarta/Denpasar)
+            setUserCoords({ lat: -8.6704, lng: 115.2126 });
+            setSmartMatching(true);
+          }
+        );
+      } else {
+        setUserCoords({ lat: -8.6704, lng: 115.2126 });
+        setSmartMatching(true);
+      }
+    } else {
+      setSmartMatching(false);
+    }
+  };
+
+  const handleChatDonor = (food: any) => {
+    if (!user) return alert('Silakan masuk untuk berkirim pesan dengan donatur.');
+
+    const savedConvs = localStorage.getItem('wibite_conversations');
+    const convs = savedConvs ? JSON.parse(savedConvs) : [];
+    const donorId = food.donor_id || 1;
+
+    const existingIndex = convs.findIndex((c: any) => c.donor_id === donorId);
+
+    let convId;
+    if (existingIndex > -1) {
+      convId = convs[existingIndex].id;
+    } else {
+      convId = Date.now();
+      const newConv = {
+        id: convId,
+        donor_id: donorId,
+        name: food.donor_name || 'Donatur',
+        role: 'Pendonor',
+        time: 'Baru',
+        lastMsg: `Tanya tentang donasi "${food.name}"`,
+        unread: 0,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(food.donor_name || 'Donatur')}&background=10b981&color=fff`,
+        foodName: food.name
+      };
+      convs.unshift(newConv);
+      localStorage.setItem('wibite_conversations', JSON.stringify(convs));
+
+      const savedMsgs = localStorage.getItem(`wibite_msgs_${convId}`);
+      if (!savedMsgs) {
+        const welcomeMsgs = [
+          { id: 1, senderId: donorId, text: `Halo! Terima kasih tertarik dengan donasi "${food.name}". Ada yang bisa saya bantu?`, time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), isMe: false }
+        ];
+        localStorage.setItem(`wibite_msgs_${convId}`, JSON.stringify(welcomeMsgs));
+      }
+    }
+
+    setSelectedFood(null);
+    navigate(`/chat?id=${convId}`);
+  };
 
   const fetchFood = async () => {
     setLoading(true);
@@ -248,82 +500,279 @@ const ExplorePage = ({ user }: { user: User | null }) => {
     }
   };
 
-  const filteredFoods = foods.filter(f =>
-    f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.donor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.pickup_address?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getBadgeProps = (food: any) => {
+    const now = new Date();
+    const exp = food.expired_date ? new Date(food.expired_date) : null;
+    const isNearExpired = exp ? (exp.getTime() - now.getTime()) < 6 * 60 * 60 * 1000 : false;
+
+    if (isNearExpired) {
+      return {
+        text: 'DEKAT EXPIRED',
+        class: 'bg-amber-500 text-white shadow-sm'
+      };
+    } else if (food.category === 'Makanan Matang' || !food.category) {
+      return {
+        text: 'SISA EVENT',
+        class: 'bg-emerald-600 text-white shadow-sm'
+      };
+    } else {
+      return {
+        text: food.category.toUpperCase(),
+        class: 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+      };
+    }
+  };
+
+  const filteredFoods = foods.filter(f => {
+    const matchesSearch = f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      f.donor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      f.pickup_address?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesCity = !selectedCity || selectedCity === 'Semua Kota' ||
+      f.pickup_address?.toLowerCase().includes(selectedCity.toLowerCase());
+
+    return matchesSearch && matchesCity;
+  });
+
+  const processedFoods = filteredFoods.map(f => {
+    const lat = f.lat ? parseFloat(f.lat) : null;
+    const lng = f.lng ? parseFloat(f.lng) : null;
+    let distance = null;
+    if (lat !== null && lng !== null) {
+      if (smartMatching && userCoords) {
+        distance = getDistance(userCoords.lat, userCoords.lng, lat, lng);
+      } else {
+        distance = getDistance(-8.6704, 115.2126, lat, lng);
+      }
+    }
+    return { ...f, distance };
+  });
+
+  if (smartMatching) {
+    processedFoods.sort((a, b) => {
+      if (a.distance === null) return 1;
+      if (b.distance === null) return -1;
+      return a.distance - b.distance;
+    });
+  }
 
   return (
-    <div className="pt-32 pb-20 px-4 relative">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
-          <div>
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-2">Jelajahi Makanan</h1>
-            <p className="text-slate-500 font-medium italic">Temukan makanan layak konsumsi di sekitarmu.</p>
-          </div>
-          <div className="w-full md:w-96 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input type="text" placeholder="Cari makanan atau lokasi..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all shadow-sm font-medium" />
-          </div>
+    <div className="relative overflow-hidden bg-gradient-to-b from-emerald-50/50 via-slate-50 to-slate-50 min-h-screen pt-36 pb-20">
+      {/* Decorative Blob */}
+      <div className="absolute top-0 right-0 -z-10 w-96 h-96 bg-emerald-100/30 blur-3xl rounded-full translate-x-1/3 -translate-y-1/3"></div>
+
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+            Temukan Makanan di Sekitarmu
+          </h1>
+          <p className="text-slate-500 font-medium text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
+            Cari, temukan, dan klaim makanan layak konsumsi yang tersedia di sekitarmu untuk mengurangi sisa makanan (food waste) di komunitas kita.
+          </p>
         </div>
+
+        {/* Search & Filter Bar */}
+        <div className="bg-white p-2 rounded-3xl border border-slate-100 shadow-xl max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-2 mb-16 relative z-20">
+          <div className="relative flex-1 w-full flex items-center pl-4 py-2">
+            <Search className="w-5 h-5 text-slate-400 shrink-0 mr-3" />
+            <input
+              type="text"
+              placeholder="Cari nama makanan, lokasi, atau donatur..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-transparent focus:outline-none font-bold text-slate-800 placeholder:text-slate-300 border-none p-0 text-sm"
+            />
+          </div>
+
+          <div className="hidden md:block w-px h-8 bg-slate-100 shrink-0" />
+
+          {/* Filter Kota Button */}
+          <div className="relative shrink-0 w-full md:w-auto px-4">
+            <button
+              type="button"
+              onClick={() => setShowCityDropdown(!showCityDropdown)}
+              className="w-full md:w-auto px-5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-between md:justify-start gap-2 border border-slate-100"
+            >
+              <span>{selectedCity || 'Filter Kota'}</span>
+              <span className="text-[10px]">▼</span>
+            </button>
+
+            {showCityDropdown && (
+              <div className="absolute right-0 top-full mt-2 bg-white border border-slate-150 rounded-2xl shadow-xl w-48 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                {cities.map(city => (
+                  <button
+                    key={city}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCity(city === 'Semua Kota' ? '' : city);
+                      setShowCityDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-xs font-bold transition-all ${
+                      (city === 'Semua Kota' && !selectedCity) || (selectedCity === city)
+                        ? 'bg-emerald-50 text-emerald-600'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {city}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="hidden md:block w-px h-8 bg-slate-100 shrink-0" />
+
+          {/* Smart Matching Toggle */}
+          <div className="flex items-center gap-3 px-4 py-2 shrink-0 w-full md:w-auto justify-between md:justify-start">
+            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Smart Matching</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSmartMatching}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  smartMatching ? 'bg-emerald-500' : 'bg-slate-200'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    smartMatching ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+              <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">(Terdekat)</span>
+            </div>
+          </div>
+
+          <button className="w-full md:w-auto px-8 py-3.5 bg-emerald-500 text-white font-black text-sm uppercase tracking-widest rounded-2xl hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/25 shrink-0">
+            Cari
+          </button>
+        </div>
+
+        {/* Explore Map Component */}
+        <ExploreMap
+          foods={processedFoods}
+          selectedCity={selectedCity}
+          onSelectFood={setSelectedFood}
+        />
+
+        {/* listings Header */}
+        <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
+          <h2 className="text-2xl font-black text-slate-800">Pilihan Hari Ini</h2>
+          <a href="#" className="text-sm font-black text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wider">
+            Lihat Semua &gt;
+          </a>
+        </div>
+
         {loading ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[1, 2, 3].map(i => <div key={i} className="h-80 bg-slate-200 animate-pulse rounded-[2.5rem]"></div>)}
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredFoods.map((food) => (
-              <motion.div key={food.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} onClick={() => setSelectedFood(food)} className="bg-white rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all cursor-pointer group flex flex-col">
-                {/* Image Section */}
-                <div className="relative h-56 w-full shrink-0 overflow-hidden bg-slate-100">
-                  <img src={food.image || 'https://via.placeholder.com/400x300'} alt={food.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  <div className="absolute top-4 left-4">
-                    <span className="px-3 py-1.5 bg-white text-amber-500 text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm">
-                      {food.category || 'TERSEDIA'}
-                    </span>
-                  </div>
-                </div>
+            {processedFoods.map((food) => {
+              const badge = getBadgeProps(food);
+              const distanceVal = food.distance !== null
+                ? `${food.distance.toFixed(1)} km dari lokasimu`
+                : food.lat && food.lng
+                  ? `${getDistance(-8.6704, 115.2126, parseFloat(food.lat), parseFloat(food.lng)).toFixed(1)} km dari lokasimu`
+                  : '1.2 km dari lokasimu';
 
-                {/* Content Section */}
-                <div className="p-6 flex flex-col flex-grow">
-                  <div className="flex justify-between items-start gap-4 mb-2">
-                    <h3 className="text-xl font-extrabold text-emerald-500 leading-tight group-hover:text-emerald-600 transition-colors line-clamp-2">{food.name}</h3>
-                    <div className="text-right shrink-0">
-                      <p className="text-emerald-500 font-black text-sm">{food.portions} Porsi</p>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tersedia</p>
+              return (
+                <motion.div key={food.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} onClick={() => setSelectedFood(food)} className="bg-white rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all cursor-pointer group flex flex-col">
+                  {/* Image Section */}
+                  <div className="relative h-56 w-full shrink-0 overflow-hidden bg-slate-100">
+                    <img src={food.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800'} alt={food.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                    <div className="absolute top-4 left-4">
+                      <span className={`px-3 py-1.5 text-[9px] font-black rounded-full uppercase tracking-widest shadow-sm ${badge.class}`}>
+                        {badge.text}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-slate-500 text-xs font-medium mb-6">
-                    <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <span className="truncate">{food.pickup_address?.split(',')[0] || 'Lokasi tidak tersedia'}</span>
-                  </div>
-
-                  <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-xs shrink-0 overflow-hidden border border-slate-200">
-                        <img src={`https://ui-avatars.com/api/?name=${food.donor_name || 'D'}&background=f1f5f9&color=64748b`} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="min-w-0 pr-2">
-                        <p className="text-xs font-black text-slate-900 truncate">{food.donor_name || 'Donatur'}</p>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 truncate">Donor Terverifikasi</p>
+                  {/* Content Section */}
+                  <div className="p-6 flex flex-col flex-grow">
+                    <div className="flex justify-between items-start gap-4 mb-3">
+                      <h3 className="text-xl font-extrabold text-slate-800 leading-tight group-hover:text-emerald-600 transition-colors line-clamp-2">{food.name}</h3>
+                      <div className="text-right shrink-0">
+                        <p className="text-emerald-600 font-black text-sm">{food.portions} Porsi</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tersedia</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest shrink-0">Lihat Detail</span>
+
+                    <div className="flex items-center gap-1.5 text-slate-500 text-xs font-semibold mb-5">
+                      <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span className="truncate">{distanceVal}</span>
+                    </div>
+
+                    <div className="w-full h-px bg-slate-100 my-4" />
+
+                    <div className="mt-auto flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-xs shrink-0 overflow-hidden border border-slate-200">
+                          <img src={`https://ui-avatars.com/api/?name=${food.donor_name || 'D'}&background=EBF7F4&color=066F4E`} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="min-w-0 pr-2">
+                          <p className="text-xs font-black text-slate-900 truncate">{food.donor_name || 'Donatur'}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 truncate">
+                            Ambil s.d {food.expired_date ? new Date(food.expired_date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '18:00'}
+                          </p>
+                        </div>
+                      </div>
+                      <button className="px-4 py-2 bg-blue-50 text-blue-600 text-xs font-black uppercase tracking-wider rounded-xl hover:bg-blue-100 transition-colors shrink-0">
+                        Lihat
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         )}
-        {filteredFoods.length === 0 && !loading && (
+
+        {processedFoods.length === 0 && !loading && (
           <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-200">
             <Search className="w-16 h-16 text-slate-200 mx-auto mb-4" />
             <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Tidak ada makanan ditemukan</p>
           </div>
         )}
+
+        {/* Load More Button */}
+        {processedFoods.length > 0 && (
+          <div className="flex justify-center mt-12">
+            <button className="flex items-center gap-2 px-6 py-3 border border-emerald-500 text-emerald-500 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-emerald-50 transition-all bg-white shadow-sm">
+              Muat Lebih Banyak
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Kontribusi Komunitas Section */}
+        <section className="mt-24 -mx-4 px-4 py-16 bg-emerald-50/40 rounded-[2.5rem]">
+          <div className="max-w-5xl mx-auto bg-white rounded-3xl p-8 md:p-10 border border-slate-100 shadow-xl flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="max-w-md">
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Kontribusi Komunitas</h3>
+              <p className="text-slate-500 text-sm font-medium mt-2 leading-relaxed">
+                Setiap makanan yang dibagikan dan diklaim berkontribusi langsung pada pengurangan limbah makanan global dan penyelamatan ekosistem bumi kita.
+              </p>
+            </div>
+            <div className="flex gap-10 md:gap-16 shrink-0">
+              <div>
+                <p className="text-4xl md:text-5xl font-black text-emerald-600 leading-none">1,240</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">Meals Saved</p>
+              </div>
+              <div>
+                <p className="text-4xl md:text-5xl font-black text-emerald-600 leading-none">850kg</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">CO2 Reduced</p>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
+
+      {/* Selected Food Detail Modal */}
       <AnimatePresence>
         {selectedFood && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -333,9 +782,9 @@ const ExplorePage = ({ user }: { user: User | null }) => {
 
               {/* Left Image Side */}
               <div className="md:w-5/12 h-64 md:h-auto relative bg-slate-100 shrink-0">
-                <img src={selectedFood.image || 'https://via.placeholder.com/400x600'} alt={selectedFood.name} className="w-full h-full object-cover" />
+                <img src={selectedFood.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800'} alt={selectedFood.name} className="w-full h-full object-cover" />
                 <div className="absolute top-4 left-4">
-                  <span className="px-3 py-1.5 bg-white text-amber-500 text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm">
+                  <span className="px-3 py-1.5 bg-white text-emerald-600 text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm">
                     {selectedFood.category || 'TERSEDIA'}
                   </span>
                 </div>
@@ -394,16 +843,23 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                     Alamat Penjemputan
                   </p>
                   <p className="text-slate-700 text-sm font-medium mb-4 leading-relaxed">{selectedFood.pickup_address}</p>
-                  {selectedFood.lat && selectedFood.lng && (
-                    <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative">
-                      <MapPreview lat={selectedFood.lat} lng={selectedFood.lng} label={selectedFood.name} />
-                      <a href={`https://www.google.com/maps?q=${selectedFood.lat},${selectedFood.lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 hover:text-blue-700 shadow-sm transition-colors border border-slate-100">Buka di Maps ↗</a>
-                    </div>
-                  )}
+                  {(() => {
+                    const lat = selectedFood.lat ? parseFloat(selectedFood.lat) : -8.6704;
+                    const lng = selectedFood.lng ? parseFloat(selectedFood.lng) : 115.2126;
+                    return (
+                      <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative">
+                        <MapPreview lat={lat} lng={lng} label={selectedFood.name} />
+                        <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 hover:text-blue-700 shadow-sm transition-colors border border-slate-100">Buka di Maps ↗</a>
+                      </div>
+                    );
+                  })()}
                 </div>
 
-                <div className="mt-auto pt-4 border-t border-slate-50">
-                  <button onClick={() => handleClaim(selectedFood.id)} className="w-full py-4 px-6 bg-emerald-500 text-white font-black text-base uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5">Klaim Makanan</button>
+                <div className="mt-auto pt-4 border-t border-slate-50 flex gap-3">
+                  <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
+                    <MessageSquare className="w-4 h-4" /> Chat
+                  </button>
+                  <button onClick={() => handleClaim(selectedFood.id)} className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center">Klaim Makanan</button>
                 </div>
               </div>
             </motion.div>
@@ -415,11 +871,11 @@ const ExplorePage = ({ user }: { user: User | null }) => {
 };
 
 // --- Auth Page ---
-const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
+const AuthPage = ({ type, onAuthSuccess }: { type: 'login' | 'register'; onAuthSuccess: (user: User) => void }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'donor' | 'receiver'>('receiver');
+  const [role, setRole] = useState<'donor' | 'receiver'>('donor');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -429,14 +885,14 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
     setError('');
     setIsLoading(true);
     try {
+      let loggedInUser;
       if (type === 'login') {
-        await authService.login({ email, password });
-        navigate('/dashboard');
+        loggedInUser = await authService.login({ email, password });
       } else {
-        await authService.register({ name, email, password, role });
-        navigate('/dashboard');
+        loggedInUser = await authService.register({ name, email, password, role });
       }
-      window.location.reload();
+      onAuthSuccess(loggedInUser);
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data?.errors?.email?.[0] || 'Terjadi kesalahan.');
     } finally {
@@ -577,33 +1033,7 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
               </div>
             </div>
 
-            {type === 'register' && (
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Saya Ingin Menjadi</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setRole('receiver')}
-                    className={`py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${role === 'receiver'
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
-                      : 'border-slate-100 bg-white text-slate-400 hover:border-emerald-200'
-                      }`}
-                  >
-                    Penerima
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('donor')}
-                    className={`py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${role === 'donor'
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
-                      : 'border-slate-100 bg-white text-slate-400 hover:border-emerald-200'
-                      }`}
-                  >
-                    Pendonor
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Peran otomatis menjadi Pendonor saat mendaftar */}
 
             <button
               disabled={isLoading}
@@ -638,14 +1068,31 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
 };
 
 // --- Dashboard Page (routes to role-specific dashboard) ---
-const DashboardPage = ({ user }: { user: User | null }) => {
-  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+const DashboardPage = ({ user, onAuthSuccess }: { user: User | null; onAuthSuccess: (user: User) => void }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const openAdd = searchParams.get('add') === '1';
-  const handleCloseAdd = () => { window.history.replaceState({}, '', '/dashboard'); };
+  const editIdStr = searchParams.get('edit');
+  const editFoodId = editIdStr ? parseInt(editIdStr, 10) : null;
 
-  if (!user) return <AuthPage type="login" />;
+  const handleCloseAdd = () => {
+    setSearchParams({});
+  };
+
+  const handleCloseEdit = () => {
+    setSearchParams({});
+  };
+
+  if (!user) return <AuthPage type="login" onAuthSuccess={onAuthSuccess} />;
   if (user.role === 'donor' || user.role === 'admin') {
-    return <DonorDashboard user={user} openAddFood={openAdd} onCloseAddFood={handleCloseAdd} />;
+    return (
+      <DonorDashboard
+        user={user}
+        openAddFood={openAdd}
+        onCloseAddFood={handleCloseAdd}
+        editFoodId={editFoodId}
+        onCloseEditFood={handleCloseEdit}
+      />
+    );
   }
   return <ReceiverDashboard user={user} />;
 };
@@ -964,22 +1411,25 @@ const App = () => {
     );
   }
 
+  const themeClass = user?.role === 'receiver' ? 'theme-receiver' : 'theme-donor';
+
   return (
     <Router>
-      <div className="min-h-screen flex flex-col bg-slate-50 selection:bg-emerald-500/20 selection:text-emerald-500">
-        <Navbar user={user} onLogout={handleLogout} />
+      <div className={`min-h-screen flex flex-col bg-slate-50 selection:bg-emerald-500/20 selection:text-emerald-500 ${themeClass}`}>
+        <Navbar user={user} onLogout={handleLogout} onUserUpdate={setUser} />
         <main className="flex-1 flex flex-col">
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/explore" element={<ExplorePage user={user} />} />
             <Route path="/forum" element={<ForumPage user={user} />} />
             <Route path="/guidelines" element={<GuidelinePage />} />
-            <Route path="/dashboard" element={<DashboardPage user={user} />} />
+            <Route path="/dashboard" element={<DashboardPage user={user} onAuthSuccess={setUser} />} />
+            <Route path="/history" element={user ? <DonationHistory user={user} /> : <Navigate to="/login" />} />
             <Route path="/profile" element={<ProfilePage user={user} onUpdate={setUser} />} />
             <Route path="/chat" element={user ? <Chat user={user} /> : <Navigate to="/login" />} />
             <Route path="/admin" element={<AdminDashboard user={user} />} />
-            <Route path="/login" element={<AuthPage type="login" />} />
-            <Route path="/register" element={<AuthPage type="register" />} />
+            <Route path="/login" element={<AuthPage type="login" onAuthSuccess={setUser} />} />
+            <Route path="/register" element={<AuthPage type="register" onAuthSuccess={setUser} />} />
           </Routes>
         </main>
         <footer className="bg-white border-t border-slate-100 mt-auto">

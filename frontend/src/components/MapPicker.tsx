@@ -18,9 +18,10 @@ interface MapPickerProps {
   initialLat?: number;
   initialLng?: number;
   initialAddress?: string;
+  renderSearch?: (searchElement: React.ReactNode) => React.ReactNode;
 }
 
-export default function MapPicker({ onCoordinatePicked, initialLat, initialLng, initialAddress }: MapPickerProps) {
+export default function MapPicker({ onCoordinatePicked, initialLat, initialLng, initialAddress, renderSearch }: MapPickerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
@@ -165,57 +166,67 @@ export default function MapPicker({ onCoordinatePicked, initialLat, initialLng, 
     );
   };
 
+  const searchElement = (
+    <div className="relative z-20">
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Cari lokasi (contoh: Telkom University)..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-11 pr-10 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 font-bold text-sm shadow-sm transition-all"
+          />
+          {isSearching && (
+            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500 animate-spin" />
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={useCurrentLocation}
+          title="Gunakan lokasi saat ini"
+          className="p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm"
+        >
+          <Navigation className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Suggestions Dropdown */}
+      <AnimatePresence>
+        {suggestions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden z-[30] max-h-64 overflow-y-auto"
+          >
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => selectSuggestion(s)}
+                className="w-full text-left px-5 py-3 hover:bg-slate-50 flex items-start gap-3 transition-colors border-b border-slate-50 last:border-0"
+              >
+                <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                <span className="text-xs font-medium text-slate-600 line-clamp-2">{s.display_name}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+  useEffect(() => {
+    if (renderSearch) {
+      renderSearch(searchElement);
+    }
+  }, [searchQuery, suggestions, isSearching, renderSearch]);
+
   return (
     <div className="space-y-4">
-      {/* Search Input */}
-      <div className="relative z-20">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cari lokasi (contoh: Telkom University)..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-11 pr-10 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 font-bold text-sm shadow-sm transition-all"
-            />
-            {isSearching && (
-              <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500 animate-spin" />
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={useCurrentLocation}
-            title="Gunakan lokasi saat ini"
-            className="p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm"
-          >
-            <Navigation className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Suggestions Dropdown */}
-        <AnimatePresence>
-          {suggestions.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute top-full left-0 right-12 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden z-[30] max-h-64 overflow-y-auto"
-            >              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => selectSuggestion(s)}
-                  className="w-full text-left px-5 py-3 hover:bg-slate-50 flex items-start gap-3 transition-colors border-b border-slate-50 last:border-0"
-                >
-                  <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                  <span className="text-xs font-medium text-slate-600 line-clamp-2">{s.display_name}</span>
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {renderSearch ? null : searchElement}
 
       {/* Map Display */}
       <div
