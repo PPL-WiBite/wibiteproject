@@ -1168,11 +1168,11 @@ const DashboardPage = ({ user, onAuthSuccess }: { user: User | null; onAuthSucce
   const editFoodId = editIdStr ? parseInt(editIdStr, 10) : null;
 
   const handleCloseAdd = () => {
-    setSearchParams({});
+    setSearchParams({}, { replace: true });
   };
 
   const handleCloseEdit = () => {
-    setSearchParams({});
+    setSearchParams({}, { replace: true });
   };
 
   if (!user) return <AuthPage type="login" onAuthSuccess={onAuthSuccess} />;
@@ -1347,7 +1347,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
             </button>
             <button
               type="button"
-              onClick={() => navigate('/donasi')}
+              onClick={() => navigate('/dashboard')}
               className="w-full px-4 py-3 text-slate-500 hover:bg-slate-100 hover:text-slate-700 font-bold text-xs rounded-2xl flex items-center gap-3 text-left focus:outline-none transition-colors"
             >
               <HandHeart className="w-4 h-4" />
