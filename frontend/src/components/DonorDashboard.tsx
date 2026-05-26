@@ -502,7 +502,7 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
                       initialLat={formData.lat || undefined}
                       initialLng={formData.lng || undefined}
                       initialAddress={formData.pickup_address}
-                      renderSearch={setMapSearchNode}
+                      renderSearch={(el) => { setMapSearchNode(el); return el; }}
                     />
                   </div>
                 </div>

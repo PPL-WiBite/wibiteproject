@@ -11,7 +11,7 @@ class FeedbackController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'message' => 'required|string',
+            'message' => 'nullable|string',
             'rating' => 'required|integer|min:1|max:5',
         ]);
 
@@ -19,7 +19,7 @@ class FeedbackController extends Controller
 
         Feedback::create([
             'user_id' => $user->id,
-            'message' => $validated['message'],
+            'message' => $validated['message'] ?? '',
             'rating' => $validated['rating'],
         ]);
 
