@@ -13,6 +13,8 @@ class FeedbackController extends Controller
         $validated = $request->validate([
             'message' => 'nullable|string',
             'rating' => 'required|integer|min:1|max:5',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string',
         ]);
 
         $user = $request->user();
@@ -21,6 +23,7 @@ class FeedbackController extends Controller
             'user_id' => $user->id,
             'message' => $validated['message'] ?? '',
             'rating' => $validated['rating'],
+            'tags' => $validated['tags'] ?? [],
         ]);
 
         return response()->json(['success' => true], 201);

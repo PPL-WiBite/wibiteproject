@@ -40,6 +40,7 @@ export default function RatebackPage({ user }: RatebackPageProps) {
       await api.post('/feedback', {
         message: feedbackText,
         rating,
+        tags: selectedTags,
       });
 
       setIsSubmitted(true);
