@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #066F4E;
+  --color-primary-dark: #006241;
+  --color-secondary: #f59e0b;
+  --color-emerald-50: #EBF7F4;
+  --color-emerald-100: #D1EFE6;
+  --color-emerald-200: #A3DFC9;
+  --color-emerald-300: #6BCAAB;
+  --color-emerald-400: #3AB18C;
+  --color-emerald-500: #066F4E;
+  --color-emerald-600: #006241;
+  --color-emerald-700: #004D32;
+  --color-emerald-800: #003824;
+  --color-emerald-900: #002416;
+  --color-emerald-950: #00120B;
+}
+
+.theme-receiver {
+  --color-primary: var(--color-amber-500);
+  --color-primary-dark: var(--color-amber-600);
+
+  --color-emerald-50: var(--color-amber-50);
+  --color-emerald-100: var(--color-amber-100);
+  --color-emerald-200: var(--color-amber-200);
+  --color-emerald-300: var(--color-amber-300);
+  --color-emerald-400: var(--color-amber-400);
+  --color-emerald-500: var(--color-amber-500);
+  --color-emerald-600: var(--color-amber-600);
+  --color-emerald-700: var(--color-amber-700);
+  --color-emerald-800: var(--color-amber-800);
+  --color-emerald-900: var(--color-amber-900);
+  --color-emerald-950: var(--color-amber-950);
+}
+
+@layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    @apply font-sans bg-slate-50 text-slate-900;
+  }
+  
+  .markdown-body h1 { @apply text-2xl font-bold mb-4 mt-6; }
+  .markdown-body h2 { @apply text-xl font-bold mb-3 mt-5; }
+  .markdown-body h3 { @apply text-lg font-bold mb-2 mt-4; }
+  .markdown-body p { @apply mb-4 leading-relaxed; }
+  .markdown-body ul { @apply list-disc ml-6 mb-4; }
+  .markdown-body ol { @apply list-decimal ml-6 mb-4; }
+  .markdown-body blockquote { @apply border-l-4 border-emerald-500 pl-4 py-1 italic mb-4 bg-emerald-50/50 rounded-r-lg; }
+}
+
