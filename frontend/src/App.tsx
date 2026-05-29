@@ -1251,6 +1251,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
     name: user?.name || '',
     email: user?.email || '',
     address: user?.address || '',
+    phone: user?.phone || '',
   });
 
   const localKey = `wibite_profile_${user?.id}`;
@@ -1267,6 +1268,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
   const [loading, setLoading] = useState(false);
   const [foodSaved, setFoodSaved] = useState(12); // default mock stat or from API
   const [co2Saved, setCo2Saved] = useState(12);
+  const [showPhotoMenu, setShowPhotoMenu] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -1296,6 +1298,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
       const res = await api.put('/users/profile', {
         name: formData.name,
         address: formData.address,
+        phone: formData.phone,
       });
       // Save local fields
       localStorage.setItem(localKey, JSON.stringify(localData));
@@ -1392,54 +1395,67 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
             </div>
 
             {/* Avatar Upload */}
-            <div className="flex items-center gap-6 py-4 border-b border-slate-50">
-              <div className="relative w-20 h-20 shrink-0">
+            <div className="flex flex-col items-center justify-center py-6 border-b border-slate-50 w-full">
+            
+              <div className="relative w-32 h-32 shrink-0">
                 {localData.avatar ? (
                   <img
                     src={localData.avatar}
                     alt="Avatar Profile"
-                    className="w-full h-full object-cover rounded-full border-2 border-white shadow-md bg-slate-100"
+                    className="w-full h-full object-cover rounded-full border-4 border-white shadow-lg bg-slate-100"
                   />
                 ) : (
-                  <div className="w-full h-full rounded-full border-2 border-slate-200 border-dashed bg-slate-50 flex items-center justify-center text-slate-400 shadow-inner">
-                    <UserIcon className="w-8 h-8" />
+                  <div className="w-full h-full rounded-full border-4 border-slate-200 border-dashed bg-slate-50 flex items-center justify-center text-slate-400 shadow-inner">
+                    <UserIcon className="w-12 h-12" />
                   </div>
                 )}
-                <label className="absolute bottom-0 right-0 w-7 h-7 bg-emerald-600 border-2 border-white rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-emerald-700 transition-colors">
-                  <Camera className="w-3.5 h-3.5" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs font-black text-slate-800">Foto Profil Anda</p>
-                <p className="text-[10px] text-slate-400 font-semibold">PNG atau JPG, maksimal 5MB.</p>
-                <div className="flex gap-2">
-                  <label className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer">
-                    Unggah Baru
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarChange}
-                      className="hidden"
-                    />
-                  </label>
+
+               
+                <div className="absolute bottom-1 right-1 z-10">
                   <button
                     type="button"
-                    onClick={handleRemoveAvatar}
-                    className="px-3 py-1.5 border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold text-[10px] rounded-lg transition-colors"
+                    onClick={() => setShowPhotoMenu(!showPhotoMenu)}
+                    className="w-9 h-9 bg-emerald-600 border-2 border-white rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-emerald-700 transition-colors focus:outline-none shadow-md"
                   >
-                    Hapus
+                    <Camera className="w-4 h-4" />
                   </button>
+
+                 
+                  {showPhotoMenu && (
+                    <div className="absolute top-11 left-1/2 -translate-x-1/2 z-30 bg-white border border-slate-100 shadow-xl rounded-xl p-2 flex flex-col gap-1 w-28 animate-in fade-in zoom-in-95 duration-100">
+                      
+                      {/* Tambah */}
+                      <label className="w-full text-center px-2 py-1.5 bg-emerald-5 text-emerald-700 hover:bg-emerald-100 font-bold text-[10px] rounded-lg transition-colors cursor-pointer block">
+                        Tambah
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            handleAvatarChange(e);
+                            setShowPhotoMenu(false);
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {/* Hapus */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleRemoveAvatar();
+                          setShowPhotoMenu(false);
+                        }}
+                        className="w-full text-center px-2 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-[10px] rounded-lg transition-colors"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Fields Grid */}
+            {/* Fields Grid*/}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Nama Lengkap</label>
@@ -1465,6 +1481,19 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
               </div>
             </div>
 
+        
+            <div>
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Nomor Telepon / WhatsApp</label>
+              <input
+                type="tel"
+                required
+                value={formData.phone || ''} 
+                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="Contoh: 081234567890"
+                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-bold text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500"
+              />
+            </div>
+
             {/* Address */}
             <div>
               <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Alamat</label>
@@ -1474,6 +1503,21 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
                 placeholder="Masukkan alamat lengkap Anda (Opsional)"
                 className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-semibold text-xs text-slate-850 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 h-16 resize-none"
               />
+            </div>
+
+            
+            <div>
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Bio</label>
+              <textarea
+                maxLength={160}
+                value={localData.bio}
+                onChange={e => setLocalData((prev: any) => ({ ...prev, bio: e.target.value }))}
+                placeholder="Ceritakan sedikit tentang diri Anda atau misi donasi Anda..."
+                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-semibold text-xs text-slate-850 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 h-24 resize-none"
+              />
+              <div className="text-right text-[10px] text-slate-450 font-bold mt-1">
+                {localData.bio.length}/160 karakter
+              </div>
             </div>
 
             {/* Leaflet Map Picker */}
@@ -1494,28 +1538,12 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
                 Lokasi Terkunci
               </div>
             </div>
-
-            {/* Bio */}
-            <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Bio</label>
-              <textarea
-                maxLength={160}
-                value={localData.bio}
-                onChange={e => setLocalData((prev: any) => ({ ...prev, bio: e.target.value }))}
-                placeholder="Ceritakan sedikit tentang diri Anda atau misi donasi Anda..."
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-semibold text-xs text-slate-850 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 h-24 resize-none"
-              />
-              <div className="text-right text-[10px] text-slate-450 font-bold mt-1">
-                {localData.bio.length}/160 karakter
-              </div>
-            </div>
-
             {/* Submit & Cancel */}
             <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
               <button
                 type="button"
                 onClick={() => {
-                  setFormData({ name: user.name || '', email: user.email || '', address: user.address || '' });
+                  setFormData({ name: user.name || '', email: user.email || '', address: user.address || '', phone: user.phone || '' });
                   const stored = localStorage.getItem(localKey);
                   if (stored) setLocalData(JSON.parse(stored));
                 }}
