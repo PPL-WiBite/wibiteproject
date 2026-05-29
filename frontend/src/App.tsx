@@ -1417,7 +1417,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
               </div>
               <div className="space-y-2">
                 <p className="text-xs font-black text-slate-800">Foto Profil Anda</p>
-               
+                <p className="text-[10px] text-slate-400 font-semibold">PNG atau JPG, maksimal 5MB.</p>
                 <div className="flex gap-2">
                   <label className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer">
                     Unggah Baru
@@ -1909,5 +1909,4 @@ const App = () => {
   );
 };
 
- {/* tes */}
 export default App;

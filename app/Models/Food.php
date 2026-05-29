@@ -19,6 +19,8 @@ class Food extends Model
         'claimed_portions',
         'weight_kg',
         'pickup_address',
+        'lat',
+        'lng',
         'expired_date',
         'description',
         'category',
@@ -35,6 +37,8 @@ class Food extends Model
         return [
             'claimed_at' => 'datetime',
             'weight_kg' => 'decimal:2',
+            'lat' => 'decimal:7',
+            'lng' => 'decimal:7',
         ];
     }
 
