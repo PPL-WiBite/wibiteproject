@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { type User } from '@/lib/auth';
 import api from '@/lib/api';
 import MapPreview from './MapPreview';
+import { createConversationFromFood } from '@/lib/chat';
 
 interface ClaimsPageProps {
   user: User;
@@ -35,38 +36,7 @@ export default function ClaimsPage({ user }: ClaimsPageProps) {
   }, []);
 
   const handleChatDonor = (food: any) => {
-    const savedConvs = localStorage.getItem('wibite_conversations');
-    const convs = savedConvs ? JSON.parse(savedConvs) : [];
-    const donorId = food.donor_id || 1;
-    const existingIndex = convs.findIndex((c: any) => c.donor_id === donorId);
-
-    let convId;
-    if (existingIndex > -1) {
-      convId = convs[existingIndex].id;
-    } else {
-      convId = Date.now();
-      const newConv = {
-        id: convId,
-        donor_id: donorId,
-        name: food.donor_name || 'Donatur',
-        role: 'Pendonor',
-        time: 'Baru',
-        lastMsg: `Tanya tentang donasi "${food.name}"`,
-        unread: 0,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(food.donor_name || 'Donatur')}&background=10b981&color=fff`,
-        foodName: food.name
-      };
-      convs.unshift(newConv);
-      localStorage.setItem('wibite_conversations', JSON.stringify(convs));
-
-      const savedMsgs = localStorage.getItem(`wibite_msgs_${convId}`);
-      if (!savedMsgs) {
-        const welcomeMsgs = [
-          { id: 1, senderId: donorId, text: `Halo! Terima kasih tertarik dengan donasi "${food.name}". Ada yang bisa saya bantu?`, time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), isMe: false }
-        ];
-        localStorage.setItem(`wibite_msgs_${convId}`, JSON.stringify(welcomeMsgs));
-      }
-    }
+    const convId = createConversationFromFood(food, user.id);
     navigate(`/chat?id=${convId}`);
   };
 

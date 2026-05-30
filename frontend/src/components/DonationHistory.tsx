@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { type User } from '@/lib/auth';
 import api from '@/lib/api';
 import MapPreview from './MapPreview';
+import { createConversation } from '@/lib/chat';
 
 interface DonationHistoryProps {
   user: User;
@@ -97,36 +98,24 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
 
   const handleChatReceiver = (receiver: any, food: any) => {
     if (!receiver) return;
-    const savedConvs = localStorage.getItem('wibite_conversations');
-    const convs = savedConvs ? JSON.parse(savedConvs) : [];
-    
-    const receiverId = receiver.id;
-    const existingIndex = convs.findIndex((c: any) => c.receiver_id === receiverId);
 
-    let convId;
-    if (existingIndex > -1) {
-      convId = convs[existingIndex].id;
-    } else {
-      convId = Date.now();
-      const newConv = {
-        id: convId,
-        receiver_id: receiverId,
-        name: receiver.name || 'Penerima',
-        role: 'Penerima',
-        time: 'Baru',
-        lastMsg: `Tanya tentang klaim donasi "${food?.name || 'Makanan'}"`,
-        unread: 0,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(receiver.name || 'Penerima')}&background=3b82f6&color=fff`,
-        foodName: food?.name || 'Makanan'
-      };
-      convs.unshift(newConv);
-      localStorage.setItem('wibite_conversations', JSON.stringify(convs));
+    const stub = {
+      donor_id: food?.donor_id || food?.donor?.id || 1,
+      receiver_id: receiver.id,
+      name: receiver.name || 'Penerima',
+      role: 'Penerima',
+      time: 'Baru',
+      lastMsg: `Tanya tentang klaim donasi "${food?.name || 'Makanan'}"`,
+      unread: 0,
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(receiver.name || 'Penerima')}&background=3b82f6&color=fff`,
+      foodName: food?.name || 'Makanan'
+    };
 
-      const welcomeMsgs = [
-        { id: 1, senderId: receiverId, text: `Halo! Saya ingin mengambil donasi "${food?.name || 'Makanan'}". Kapan saya bisa menjemputnya?`, time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), isMe: false }
-      ];
-      localStorage.setItem(`wibite_msgs_${convId}`, JSON.stringify(welcomeMsgs));
-    }
+    const welcomeMsgs = [
+      { id: 1, senderId: receiver.id, text: `Halo! Saya ingin mengambil donasi "${food?.name || 'Makanan'}". Kapan saya bisa menjemputnya?`, time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), isMe: false }
+    ];
+
+    const convId = createConversation(stub, welcomeMsgs);
     navigate(`/chat?id=${convId}`);
   };
 
