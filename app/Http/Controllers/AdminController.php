@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Feedback;
+use App\Models\FinancialDonation;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,5 +26,11 @@ class AdminController extends Controller
     {
         $user->delete();
         return response()->json(['success' => true]);
+    }
+
+    public function financialDonations(): JsonResponse
+    {
+        $donations = FinancialDonation::orderByDesc('created_at')->get();
+        return response()->json($donations);
     }
 }
