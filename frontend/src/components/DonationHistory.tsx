@@ -447,7 +447,7 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
                     )}
                     {/* Status Badge */}
                     <div className="absolute top-4 left-4">
-                      <span className="text-xs font-bold px-4 py-1.5 rounded-full bg-slate-650 text-white bg-slate-600">
+                      <span className="text-xs font-bold px-4 py-1.5 rounded-full bg-slate-600 text-white">
                         Selesai
                       </span>
                     </div>
@@ -455,14 +455,30 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
 
                   {/* Body */}
                   <div className="p-6 flex flex-col flex-grow">
-                    <span className="text-slate-500 font-semibold text-sm mb-1">
+                    {/* 1. Nama Makanan */}
+                    <h4 className="text-xl font-bold text-slate-900 leading-tight mb-1">{claim.food?.name}</h4>
+                    
+                    {/* 2. Kategori Makanan */}
+                    <span className="text-slate-500 font-semibold text-sm mb-4">
                       {claim.food?.category || 'Makanan Matang'}
                     </span>
-
-                    <h4 className="text-xl font-bold text-slate-900 leading-tight mb-2">{claim.food?.name}</h4>
                     
-                    {/* Receiver Info */}
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center gap-3 mb-4">
+                    {/* Info Rows */}
+                    <div className="space-y-2 mb-4">
+                      {/* 3. Jumlah Porsi */}
+                      <div className="flex items-center gap-2.5 text-slate-500 text-sm">
+                        
+                        <span>{claim.portions} Porsi Selesai</span>
+                      </div>
+                      {/* 4. Waktu Selesai */}
+                      <div className="flex items-center gap-2.5 text-slate-500 text-sm">
+                        
+                        <span>Selesai pada: {new Date(claim.updated_at || Date.now()).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                    </div>
+
+                    {/* 5. Receiver Info*/}
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center gap-3 mb-5 mt-auto">
                       <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden shrink-0">
                         <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(claim.receiver?.name || 'Penerima')}&background=e2e8f0&color=475569`} className="w-full h-full object-cover" />
                       </div>
@@ -472,25 +488,15 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
                       </div>
                     </div>
 
-                    {/* Info rows */}
-                    <div className="space-y-2 mb-6">
-                      <div className="flex items-center gap-2.5 text-slate-500 text-sm">
-                        <span className="text-base">📦</span>
-                        <span>{claim.portions} Porsi Selesai Diambil</span>
-                      </div>
-                      <div className="flex items-center gap-2.5 text-slate-500 text-sm">
-                        <span className="text-base">📅</span>
-                        <span>Selesai pada: {new Date(claim.updated_at || Date.now()).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                      </div>
+                    {/* 6. Tombol Detail Makanan  */}
+                    <div className="flex justify-end w-full">
+                      <button
+                        onClick={() => setSelectedFoodDetail({ ...claim.food, completed_at: claim.updated_at })}
+                        className="px-6 py-2 border-2 border-slate-200 text-slate-600 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
+                      >
+                        Detail Makanan
+                      </button>
                     </div>
-
-                    {/* Action Buttons */}
-                    <button
-                      onClick={() => setSelectedFoodDetail(claim.food)}
-                      className="w-full py-3.5 border-2 border-slate-200 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-center mt-auto"
-                    >
-                      Detail Makanan
-                    </button>
                   </div>
                 </div>
               ))}
@@ -547,18 +553,33 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
                 </div>
 
                 <div className="space-y-4 mb-6">
+                  {/* Batas Waktu Pengambilan */}
                   <div>
                     <span className="text-xs text-slate-400 font-semibold block mb-1">Batas Waktu Pengambilan</span>
                     <span className="text-sm font-bold text-slate-700">
                       {selectedFoodDetail.expired_date ? new Date(selectedFoodDetail.expired_date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
                     </span>
                   </div>
+
+                  
+                  <div>
+                    <span className="text-xs text-slate-400 font-semibold block mb-1">Waktu Selesai / Diambil</span>
+                    <span className="text-sm font-bold text-emerald-600">
+                      {selectedFoodDetail.completed_at 
+                        ? new Date(selectedFoodDetail.completed_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) 
+                        : new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                  </div>
+
+                  {/* Deskripsi Makanan */}
                   {selectedFoodDetail.description && (
                     <div>
                       <span className="text-xs text-slate-400 font-semibold block mb-1">Deskripsi</span>
                       <p className="text-sm text-slate-500 font-medium leading-relaxed italic">"{selectedFoodDetail.description}"</p>
                     </div>
                   )}
+
+                  {/* Alamat Penjemputan */}
                   <div>
                     <span className="text-xs text-slate-400 font-semibold block mb-1">Alamat Penjemputan</span>
                     <div className="flex items-start gap-2">
@@ -567,7 +588,6 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
                     </div>
                   </div>
                 </div>
-
                 {selectedFoodDetail.lat && selectedFoodDetail.lng && (
                   <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative mb-6">
                     <MapPreview lat={parseFloat(selectedFoodDetail.lat)} lng={parseFloat(selectedFoodDetail.lng)} label={selectedFoodDetail.name} />
