@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
+import { createConversationFromFood } from '@/lib/chat';
 import ForumPage from '@/components/Forum';
 import DonorDashboard from '@/components/DonorDashboard';
 import ReceiverDashboard from '@/components/ReceiverDashboard';
@@ -76,39 +77,44 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
         </Link>
 
         {/* TENGAH: Nav menu (absolute, benar-benar rata tengah) */}
-        {user && (
-          <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-4">
-            {user.role === 'donor' ? (
-              <Link to="/dashboard" className={navLinkClass('/dashboard')}>
-                Donasi Makanan
-                {location.pathname === '/dashboard' && (
-                  <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-                )}
-              </Link>
-            ) : (
-              <>
-                <Link to="/explore" className={navLinkClass('/explore')}>
-                  Cari Makanan
-                  {location.pathname === '/explore' && (
-                    <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-                  )}
-                </Link>
-                <Link to="/klaim" className={navLinkClass('/klaim')}>
-                  Klaim Saya
-                  {location.pathname === '/klaim' && (
-                    <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-                  )}
-                </Link>
-              </>
-            )}
-            <Link to="/forum" className={navLinkClass('/forum')}>
-              Forum
-              {location.pathname === '/forum' && (
-                <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-              )}
-            </Link>
-          </div>
+{user && (
+  <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-4">
+
+    {user.role === 'admin' ? (
+      <Link to="/admin" className={navLinkClass('/admin')}>
+        Admin Panel
+        {location.pathname === '/admin' && (
+          <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
         )}
+      </Link>
+    ) : user.role === 'donor' ? (
+      <Link to="/dashboard" className={navLinkClass('/dashboard')}>
+        Donasi Makanan
+        {location.pathname === '/dashboard' && (
+          <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+        )}
+      </Link>
+    ) : (
+      <>
+        <Link to="/explore" className={navLinkClass('/explore')}>
+          Cari Makanan
+        </Link>
+
+        <Link to="/klaim" className={navLinkClass('/klaim')}>
+          Klaim Saya
+        </Link>
+      </>
+    )}
+
+    <Link to="/forum" className={navLinkClass('/forum')}>
+      Forum
+      {location.pathname === '/forum' && (
+        <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+      )}
+    </Link>
+
+  </div>
+)}
 
         {/* KANAN: Auth / User menu */}
         <div className="flex items-center gap-3 flex-shrink-0">
@@ -141,15 +147,11 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
                   </button>
                 </div>
               )}
-
-              {user.role === 'admin' && (
-                <Link
-                  to="/admin"
-                  className="text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-2 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-colors"
-                >
-                  Admin
-                </Link>
-              )}
+{user.role === 'admin' && (
+  <span className="px-3 py-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 text-xs font-black uppercase tracking-widest">
+    ADMIN
+  </span>
+)}
               <Link
                 to="/profile"
                 className="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-emerald-100"
@@ -467,39 +469,7 @@ const ExplorePage = ({ user }: { user: User | null }) => {
   const handleChatDonor = (food: any) => {
     if (!user) return alert('Silakan masuk untuk berkirim pesan dengan donatur.');
 
-    const savedConvs = localStorage.getItem('wibite_conversations');
-    const convs = savedConvs ? JSON.parse(savedConvs) : [];
-    const donorId = food.donor_id || 1;
-
-    const existingIndex = convs.findIndex((c: any) => c.donor_id === donorId);
-
-    let convId;
-    if (existingIndex > -1) {
-      convId = convs[existingIndex].id;
-    } else {
-      convId = Date.now();
-      const newConv = {
-        id: convId,
-        donor_id: donorId,
-        name: food.donor_name || 'Donatur',
-        role: 'Pendonor',
-        time: 'Baru',
-        lastMsg: `Tanya tentang donasi "${food.name}"`,
-        unread: 0,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(food.donor_name || 'Donatur')}&background=10b981&color=fff`,
-        foodName: food.name
-      };
-      convs.unshift(newConv);
-      localStorage.setItem('wibite_conversations', JSON.stringify(convs));
-
-      const savedMsgs = localStorage.getItem(`wibite_msgs_${convId}`);
-      if (!savedMsgs) {
-        const welcomeMsgs = [
-          { id: 1, senderId: donorId, text: `Halo! Terima kasih tertarik dengan donasi "${food.name}". Ada yang bisa saya bantu?`, time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), isMe: false }
-        ];
-        localStorage.setItem(`wibite_msgs_${convId}`, JSON.stringify(welcomeMsgs));
-      }
-    }
+    const convId = createConversationFromFood(food, user.id);
 
     setSelectedFood(null);
     navigate(`/chat?id=${convId}`);
@@ -986,7 +956,14 @@ const AuthPage = ({ type, onAuthSuccess }: { type: 'login' | 'register'; onAuthS
         loggedInUser = await authService.register({ name, email, password, role });
       }
       onAuthSuccess(loggedInUser);
-      navigate('/dashboard');
+
+      if (loggedInUser.role === 'admin') {
+        navigate('/admin');
+      } else if (loggedInUser.role === 'receiver') {
+        navigate('/explore');
+      } else {
+  navigate('/dashboard');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data?.errors?.email?.[0] || 'Terjadi kesalahan.');
     } finally {
@@ -1289,7 +1266,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
     fetchStats();
   }, [user]);
 
-  if (!user) return <AuthPage type="login" />;
+  if (!user) return <Navigate to="/login" />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1486,7 +1463,6 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
               <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Nomor Telepon / WhatsApp</label>
               <input
                 type="tel"
-                required
                 value={formData.phone || ''} 
                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="Contoh: 081234567890"
@@ -1787,32 +1763,13 @@ const App = () => {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        const savedUserId = localStorage.getItem('wibite_user_id');
-        if (savedUserId && savedUserId !== String(user.id)) {
-          // Logged in user changed or DB reset, clear local chat data
-          localStorage.removeItem('wibite_conversations');
-          const keysToRemove = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('wibite_msgs_')) {
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach(k => localStorage.removeItem(k));
-        }
+        // Keep conversations/messages persisted across users on the same browser.
+        // Previously we cleared all `wibite_msgs_` when `wibite_user_id` changed,
+        // which caused sent messages to disappear when switching users during testing.
         localStorage.setItem('wibite_user_id', String(user.id));
       } else {
-        // No user logged in, clear chat storage
+        // No user logged in, keep chat storage to preserve local conversation history.
         localStorage.removeItem('wibite_user_id');
-        localStorage.removeItem('wibite_conversations');
-        const keysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith('wibite_msgs_')) {
-            keysToRemove.push(key);
-          }
-        }
-        keysToRemove.forEach(k => localStorage.removeItem(k));
       }
     }
   }, [user, loading]);
@@ -1820,18 +1777,7 @@ const App = () => {
   const handleLogout = async () => {
     await authService.logout();
     
-    // Clear chat storage for security and privacy
     localStorage.removeItem('wibite_user_id');
-    localStorage.removeItem('wibite_conversations');
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('wibite_msgs_')) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach(k => localStorage.removeItem(k));
-
     setUser(null);
     window.location.href = '/';
   };
