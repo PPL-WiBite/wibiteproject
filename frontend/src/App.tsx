@@ -5,7 +5,7 @@ import {
   Heart, Search, LayoutDashboard, LogOut, MapPin, ChevronRight, TrendingUp,
   Globe, Leaf, Clock, Info, X, Star, CheckCircle2, Lock, Mail,
   User as UserIcon, MessageCircle, LogIn, Trash2, Pencil, PlusCircle,
-  HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon
+  HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon, Eye, EyeOff
 } from 'lucide-react';
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
@@ -324,6 +324,7 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); 
   const navigate = useNavigate();
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -469,13 +470,20 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
               <div className="relative">
                 <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min. 6 karakter"
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 pl-12 pr-5 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-slate-900 placeholder:text-slate-300"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 pl-12 pr-12 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-slate-900 placeholder:text-slate-300"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-500 transition-colors focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
