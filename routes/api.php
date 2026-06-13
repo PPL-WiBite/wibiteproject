@@ -56,12 +56,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Claim
     Route::post('/claim', [FoodController::class, 'claim']);
     Route::post('/claims/complete', [FoodController::class, 'completeClaim']);
-    Route::get('/claims/mine', [FoodController::class, 'myClaims']);
-    Route::get('/claims/incoming', [FoodController::class, 'incomingClaims']);
-
-    // Chat antara donor dan receiver per claim
-    Route::get('/claims/{claim}/messages', [MessageController::class, 'index']);
-    Route::post('/claims/{claim}/messages', [MessageController::class, 'store']);
+    Route::post('/claims/{claim}/complete', [FoodController::class, 'completeSingleClaim']);
+    Route::post('/claims/{claim}/confirm', [FoodController::class, 'confirmClaim']);
+    Route::post('/claims/{claim}/reject', [FoodController::class, 'rejectClaim']);
+    Route::get('/claims', [FoodController::class, 'getClaims']);
+    Route::get('/donor/claims', [FoodController::class, 'getDonorClaims']);
 
     // Forum - CRUD
     Route::post('/forum', [ForumController::class, 'store']);

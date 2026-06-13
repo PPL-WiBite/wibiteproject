@@ -16,8 +16,9 @@ class Claim extends Model
         'receiver_id',
         'portions',
         'status',
-        'donor_completed_at',
-        'receiver_completed_at',
+        'pickup_time',
+        'portions',
+        'code',
     ];
 
     protected function casts(): array
