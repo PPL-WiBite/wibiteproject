@@ -29,7 +29,9 @@ services:
       - key: DB_USERNAME
         value: neondb_owner
       - key: DB_PASSWORD
-        value: "endpoint=ep-lingering-lab-aoqd958q-pooler;npg_kv40DHWftrCB"
+        value: "npg_kv40DHWftrCB"
+      - key: DB_SSLMODE
+        value: require
       - key: SESSION_DRIVER
         value: database
       - key: CACHE_STORE
