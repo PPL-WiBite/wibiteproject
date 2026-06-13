@@ -406,7 +406,6 @@ class FoodController extends Controller
 
         $claim->update(['status' => 'completed']);
 
-        // Check if all portions of the food are claimed and completed
         $food = $claim->food;
         if ($food) {
             $allClaims = Claim::where('food_id', $food->id)->get();

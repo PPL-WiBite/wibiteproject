@@ -192,7 +192,10 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
     }
   };
 
-  const activeItems = foods.filter(f => f.status !== 'completed');
+  const activeItems = foods.filter(f =>
+    Number(f.portions ?? 0) - Number(f.claimed_portions ?? 0) > 0 &&
+    String(f.status ?? '').toLowerCase() !== 'completed'
+  );
 
   // Chart data
   const chartData = [
