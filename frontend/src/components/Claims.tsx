@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Clock, X, Heart, MessageSquare, Leaf, Utensils, Users, Map } from 'lucide-react';
+import { MapPin, Clock, X, Heart, MessageSquare, Leaf, Utensils, Users, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { type User } from '@/lib/auth';
 import api from '@/lib/api';
@@ -16,7 +16,8 @@ export default function ClaimsPage({ user }: ClaimsPageProps) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
   const [selectedClaimDetail, setSelectedClaimDetail] = useState<any>(null);
-  const [showMapModal, setShowMapModal] = useState<any>(null);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verifyingClaim, setVerifyingClaim] = useState<any>(null);
   const navigate = useNavigate();
 
   const fetchClaims = async () => {
@@ -240,12 +241,6 @@ export default function ClaimsPage({ user }: ClaimsPageProps) {
                       >
                         <MessageSquare className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => setShowMapModal(food)}
-                        className="p-3 bg-white border border-slate-200 hover:border-emerald-600/40 hover:bg-slate-50 text-slate-600 hover:text-emerald-700 rounded-xl transition-colors shadow-sm flex items-center justify-center shrink-0"
-                      >
-                        <Map className="w-4 h-4" />
-                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -282,7 +277,7 @@ export default function ClaimsPage({ user }: ClaimsPageProps) {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto flex flex-col"
+                className="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto flex flex-col [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [scrollbar-width:thin] [scrollbar-color:theme(colors.slate.200)_transparent]"
               >
                 {/* Header Close */}
                 <button
@@ -354,9 +349,18 @@ export default function ClaimsPage({ user }: ClaimsPageProps) {
                   </div>
 
                   {/* Leaflet Map Preview */}
-                  <div className="rounded-xl overflow-hidden border border-slate-100 h-32 relative mb-6">
+                  <div className="rounded-xl overflow-hidden border border-slate-100 relative mb-4">
                     <MapPreview lat={lat} lng={lng} label={food.name} />
                   </div>
+                  <a
+                    href={`https://www.google.com/maps?q=${lat},${lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-600 hover:text-slate-800 font-bold text-xs uppercase tracking-widest rounded-xl text-center transition-colors mb-6"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Buka di Google Maps
+                  </a>
 
                   {/* Donor Card */}
                   <div className="flex items-center justify-between mb-8 bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -408,49 +412,7 @@ export default function ClaimsPage({ user }: ClaimsPageProps) {
         })()}
       </AnimatePresence>
 
-      {/* Map Preview Modal */}
-      <AnimatePresence>
-        {showMapModal && (() => {
-          const lat = showMapModal.lat ? parseFloat(showMapModal.lat) : -8.6704;
-          const lng = showMapModal.lng ? parseFloat(showMapModal.lng) : 115.2126;
-          return (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowMapModal(null)}
-                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl relative z-10 p-6"
-              >
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-md font-bold text-slate-900">Lokasi Penjemputan</h3>
-                  <button onClick={() => setShowMapModal(null)} className="p-1 hover:bg-slate-50 rounded-full">
-                    <X className="w-5 h-5 text-slate-400" />
-                  </button>
-                </div>
-                <div className="rounded-xl overflow-hidden border border-slate-100 h-64 relative mb-4">
-                  <MapPreview lat={lat} lng={lng} label={showMapModal.name} />
-                </div>
-                <p className="text-xs text-slate-500 mb-4">{showMapModal.pickup_address}</p>
-                <a
-                  href={`https://www.google.com/maps?q=${lat},${lng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-widest rounded-xl text-center"
-                >
-                  Buka di Google Maps ↗
-                </a>
-              </motion.div>
-            </div>
-          );
-        })()}
-      </AnimatePresence>
+
     </div>
   );
 }
