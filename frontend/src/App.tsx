@@ -36,6 +36,11 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Tutup menu mobile ketika pindah halaman
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
   const navLinkClass = (path: string) =>
     `px-4 py-2.5 text-sm font-black transition-all relative uppercase tracking-widest ${location.pathname === path
       ? 'text-emerald-600'
@@ -68,7 +73,7 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-5'
         }`}
     >
-      <div className="w-full px-6 lg:px-10 relative flex items-center justify-between">
+      <div className="w-full px-4 sm:px-6 lg:px-10 flex items-center justify-between gap-3">
         {/* KIRI: Logo */}
         <Link to="/" className="flex items-center gap-1.5 flex-shrink-0">
           <span className="text-2xl font-black tracking-tight text-emerald-600">
@@ -117,7 +122,7 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
 )}
 
         {/* KANAN: Auth / User menu */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {user ? (
             <>
               {/* Role Switcher Pill */}
@@ -175,29 +180,89 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
               </Link>
               <button
                 onClick={onLogout}
-                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-red-500 bg-slate-50 hover:bg-red-50 px-3 py-2 rounded-xl transition-colors"
+                className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-slate-600 hover:text-red-500 bg-slate-50 hover:bg-red-50 px-3 py-2 rounded-xl transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" /> Keluar
+              </button>
+              <button
+                onClick={onLogout}
+                className="sm:hidden p-2.5 bg-slate-50 hover:bg-red-50 text-slate-600 hover:text-red-500 rounded-xl transition-colors"
+                title="Keluar"
+              >
+                <LogOut className="w-4 h-4" />
               </button>
             </>
           ) : (
             <>
               <Link
                 to="/login"
-                className="text-xs font-black uppercase tracking-widest text-slate-600 px-4 py-2.5 hover:text-emerald-500 transition-colors"
+                className="hidden sm:inline-flex text-[11px] font-black uppercase tracking-widest text-slate-600 px-4 py-2.5 hover:text-emerald-500 transition-colors"
               >
                 Masuk
               </Link>
               <Link
                 to="/register"
-                className="text-xs font-black uppercase tracking-widest bg-emerald-500 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                className="text-[11px] font-black uppercase tracking-widest bg-emerald-500 text-white px-4 sm:px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
               >
                 Daftar
               </Link>
             </>
           )}
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileOpen((v) => !v)}
+            className="md:hidden p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
+            aria-label="Menu"
+          >
+            {mobileOpen ? <X className="w-4 h-4 text-slate-600" /> : <Menu className="w-4 h-4 text-slate-600" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile menu panel */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="md:hidden px-4 sm:px-6 pb-4 pt-2"
+          >
+            <div className="bg-white border border-slate-100 rounded-2xl shadow-lg p-2 flex flex-col gap-1">
+              {mobileLinks.map((l) => (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest ${
+                    location.pathname === l.to
+                      ? 'bg-emerald-500 text-white'
+                      : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {l.label}
+                </Link>
+              ))}
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 mt-1"
+                >
+                  Admin Panel
+                </Link>
+              )}
+              {!user && (
+                <Link
+                  to="/login"
+                  className="px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50"
+                >
+                  Masuk
+                </Link>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 };
@@ -371,6 +436,166 @@ const LandingPage = () => (
   </div>
 );
 
+// --- Info Pages (Tentang / Privasi / Syarat / Kontak) ---
+const InfoPageLayout = ({
+  eyebrow,
+  title,
+  subtitle,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) => (
+  <div className="pt-28 md:pt-32 pb-16 md:pb-20 px-4">
+    <div className="max-w-3xl mx-auto">
+      <div className="text-center mb-10 md:mb-14">
+        <span className="inline-block text-emerald-500 font-black uppercase tracking-widest text-[10px] bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100">
+          {eyebrow}
+        </span>
+        <h1 className="text-3xl md:text-5xl font-black text-slate-900 mt-5 tracking-tight">{title}</h1>
+        <p className="text-slate-500 mt-3 font-medium italic text-sm md:text-base">{subtitle}</p>
+      </div>
+      <div className="bg-white p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] border border-slate-50 shadow-sm space-y-6 text-slate-600 text-sm md:text-base leading-relaxed font-medium">
+        {children}
+      </div>
+    </div>
+  </div>
+);
+
+const AboutPage = () => (
+  <InfoPageLayout
+    eyebrow="Tentang WiBite"
+    title="Menghubungkan Kebaikan, Satu Porsi dalam Satu Waktu."
+    subtitle="Platform redistribusi makanan berlebih yang mendukung SDGs 12."
+  >
+    <p>
+      <strong className="text-slate-900">WiBite</strong> adalah platform komunitas yang menghubungkan
+      pendonor makanan berlebih dengan penerima yang membutuhkan. Kami percaya bahwa makanan
+      layak konsumsi tidak seharusnya berakhir di tempat sampah sementara banyak orang di sekitar
+      kita masih kekurangan.
+    </p>
+    <p>
+      Dengan mendukung <strong className="text-slate-900">Sustainable Development Goals (SDGs) 12: Konsumsi dan
+      Produksi yang Bertanggung Jawab</strong>, WiBite menghadirkan cara mudah untuk berbagi:
+      pendonor mempublikasikan makanan berlebih, penerima mengklaim, dan keduanya berkoordinasi
+      lewat chat untuk penjemputan.
+    </p>
+    <div className="grid md:grid-cols-3 gap-4 pt-2">
+      <div className="p-5 bg-emerald-50 rounded-2xl">
+        <Leaf className="w-6 h-6 text-emerald-500 mb-2" />
+        <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Misi</p>
+        <p className="text-sm text-emerald-800 mt-1">Mengurangi food waste di Indonesia.</p>
+      </div>
+      <div className="p-5 bg-amber-50 rounded-2xl">
+        <HandHeart className="w-6 h-6 text-amber-500 mb-2" />
+        <p className="text-xs font-black uppercase tracking-widest text-amber-700">Nilai</p>
+        <p className="text-sm text-amber-800 mt-1">Kebaikan, transparansi, dan martabat.</p>
+      </div>
+      <div className="p-5 bg-indigo-50 rounded-2xl">
+        <Sparkles className="w-6 h-6 text-indigo-500 mb-2" />
+        <p className="text-xs font-black uppercase tracking-widest text-indigo-700">Visi</p>
+        <p className="text-sm text-indigo-800 mt-1">Komunitas yang saling menjaga lewat pangan.</p>
+      </div>
+    </div>
+  </InfoPageLayout>
+);
+
+const PrivacyPage = () => (
+  <InfoPageLayout
+    eyebrow="Kebijakan Privasi"
+    title="Privasi Kamu, Prioritas Kami."
+    subtitle="Bagaimana kami mengumpulkan, menyimpan, dan menggunakan data kamu."
+  >
+    <h3 className="text-lg font-black text-slate-900">1. Data yang Kami Kumpulkan</h3>
+    <p>Kami menyimpan data akun (nama, email, telepon, alamat) yang kamu isi saat mendaftar atau mengelola profil, serta data aktivitas seperti donasi, klaim, dan pesan.</p>
+    <h3 className="text-lg font-black text-slate-900">2. Penggunaan Data</h3>
+    <p>Data digunakan untuk menjalankan fitur platform (otentikasi, klaim makanan, chat koordinasi) dan untuk meningkatkan kualitas layanan. Kami tidak menjual data kamu ke pihak ketiga.</p>
+    <h3 className="text-lg font-black text-slate-900">3. Keamanan</h3>
+    <p>Kata sandi disimpan dalam bentuk hash. Token otentikasi hanya berlaku pada sesi kamu dan bisa dicabut kapan saja lewat tombol "Keluar".</p>
+    <h3 className="text-lg font-black text-slate-900">4. Hak Kamu</h3>
+    <p>Kamu bisa mengubah atau menghapus data profil kapan saja dari halaman Profil. Untuk penghapusan akun, hubungi kami lewat halaman Kontak.</p>
+  </InfoPageLayout>
+);
+
+const TermsPage = () => (
+  <InfoPageLayout
+    eyebrow="Syarat & Ketentuan"
+    title="Aturan Main di WiBite."
+    subtitle="Dengan menggunakan layanan, kamu menyetujui ketentuan berikut."
+  >
+    <h3 className="text-lg font-black text-slate-900">1. Penggunaan Layanan</h3>
+    <p>WiBite hanya boleh digunakan untuk kegiatan redistribusi makanan yang sah dan nir-laba. Penjualan, penipuan, atau penyalahgunaan platform akan berakibat pada penangguhan akun.</p>
+    <h3 className="text-lg font-black text-slate-900">2. Kewajiban Pendonor</h3>
+    <p>Pendonor bertanggung jawab memastikan makanan yang didonasikan masih layak konsumsi sesuai pedoman keamanan. Cantumkan informasi yang jujur tentang porsi, lokasi, dan batas waktu.</p>
+    <h3 className="text-lg font-black text-slate-900">3. Kewajiban Penerima</h3>
+    <p>Penerima wajib menjemput makanan sesuai koordinasi dengan pendonor dan menyelesaikan klaim melalui tombol "Selesai" setelah makanan diterima.</p>
+    <h3 className="text-lg font-black text-slate-900">4. Batasan Tanggung Jawab</h3>
+    <p>WiBite memfasilitasi pertemuan antara pendonor dan penerima, namun tidak bertanggung jawab atas kondisi makanan pasca penjemputan. Gunakan akal sehat dan periksa kelayakan sebelum dikonsumsi.</p>
+    <h3 className="text-lg font-black text-slate-900">5. Perubahan Ketentuan</h3>
+    <p>Ketentuan dapat diperbarui sewaktu-waktu. Perubahan signifikan akan diumumkan di platform.</p>
+  </InfoPageLayout>
+);
+
+const ContactPage = () => (
+  <InfoPageLayout
+    eyebrow="Kontak"
+    title="Mari Ngobrol."
+    subtitle="Ada pertanyaan, masukan, atau laporan? Kami siap mendengar."
+  >
+    <div className="grid md:grid-cols-2 gap-4">
+      <a
+        href="mailto:hello@wibite.com"
+        className="flex items-start gap-4 p-5 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-colors"
+      >
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0">
+          <MailIcon className="w-5 h-5 text-emerald-500" />
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Email</p>
+          <p className="text-sm font-black text-emerald-900 break-all">hello@wibite.com</p>
+        </div>
+      </a>
+      <a
+        href="tel:+622150000000"
+        className="flex items-start gap-4 p-5 bg-amber-50 rounded-2xl hover:bg-amber-100 transition-colors"
+      >
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0">
+          <Phone className="w-5 h-5 text-amber-500" />
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Telepon</p>
+          <p className="text-sm font-black text-amber-900">+62 21 5000 0000</p>
+        </div>
+      </a>
+      <div className="flex items-start gap-4 p-5 bg-indigo-50 rounded-2xl">
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0">
+          <MapPin className="w-5 h-5 text-indigo-500" />
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Alamat</p>
+          <p className="text-sm font-black text-indigo-900">Jakarta, Indonesia</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-4 p-5 bg-slate-50 rounded-2xl">
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0">
+          <MessageCircle className="w-5 h-5 text-slate-500" />
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">Komunitas</p>
+          <Link to="/forum" className="text-sm font-black text-slate-900 hover:text-emerald-500">
+            Buka Forum
+          </Link>
+        </div>
+      </div>
+    </div>
+    <p className="text-xs text-slate-400 pt-2">
+      Respons email rata-rata dalam 1-2 hari kerja. Untuk laporan penyalahgunaan, sertakan bukti tangkapan layar.
+    </p>
+  </InfoPageLayout>
+);
+
 // --- Guideline Page ---
 const GuidelinePage = () => {
   const guidelines = [
@@ -378,7 +603,7 @@ const GuidelinePage = () => {
     { title: "Tips Pengemasan", icon: "\u{1F4E6}", items: ["Gunakan wadah ramah lingkungan jika memungkinkan.", "Pastikan wadah tertutup rapat (leak-proof).", "Sertakan label tanggal produksi dan estimasi basi.", "Pisahkan makanan basah dan kering."] }
   ];
   return (
-    <div className="pt-32 pb-20 px-4 relative">
+    <div className="pt-28 md:pt-32 pb-12 md:pb-20 px-4 relative">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-16">
           <span className="text-emerald-500 font-black uppercase tracking-widest text-[10px] bg-emerald-50 px-4 py-2 rounded-full">Standar Keamanan</span>
@@ -406,7 +631,15 @@ const GuidelinePage = () => {
 };
 
 // --- Explore Page ---
+const getRemaining = (food: any): number => {
+  if (typeof food.remaining_portions === 'number') return food.remaining_portions;
+  const total = Number(food.portions || 0);
+  const claimed = Number(food.claimed_portions || 0);
+  return Math.max(0, total - claimed);
+};
+
 const ExplorePage = ({ user }: { user: User | null }) => {
+  const toast = useToast();
   const [foods, setFoods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -479,7 +712,12 @@ const ExplorePage = ({ user }: { user: User | null }) => {
     setLoading(true);
     try {
       const res = await api.get('/food');
-      setFoods(res.data.filter((f: any) => f.status === 'available'));
+      // Tampilkan makanan yang masih punya sisa porsi (bukan hanya status 'available')
+      setFoods(
+        res.data.filter(
+          (f: any) => f.status !== 'completed' && getRemaining(f) > 0,
+        ),
+      );
     } catch (error) {
       console.error('Failed to fetch food:', error);
     } finally {
@@ -498,7 +736,9 @@ const ExplorePage = ({ user }: { user: User | null }) => {
       setSelectedFood(null);
       fetchFood();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Gagal mengklaim makanan.');
+      toast.error(error.response?.data?.error || 'Gagal mengklaim makanan.');
+    } finally {
+      setClaiming(false);
     }
   };
 
@@ -755,7 +995,11 @@ const ExplorePage = ({ user }: { user: User | null }) => {
 
       {/* Selected Food Detail Modal */}
       <AnimatePresence>
-        {selectedFood && (
+        {selectedFood && (() => {
+          const remaining = getRemaining(selectedFood);
+          const total = selectedFood.portions || 0;
+          const canClaim = remaining > 0;
+          return (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedFood(null)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white w-full max-w-4xl rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 max-h-[95vh] overflow-y-auto flex flex-col md:flex-row">
@@ -925,10 +1169,69 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                     Klaim Makanan
                   </button>
                 </div>
+
+                <div className="mb-8 flex-grow">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                    Alamat Penjemputan
+                  </p>
+                  <p className="text-slate-700 text-sm font-medium mb-4 leading-relaxed">{selectedFood.pickup_address}</p>
+                  {(() => {
+                    const lat = selectedFood.lat ? parseFloat(selectedFood.lat) : -8.6704;
+                    const lng = selectedFood.lng ? parseFloat(selectedFood.lng) : 115.2126;
+                    return (
+                      <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative">
+                        <MapPreview lat={lat} lng={lng} label={selectedFood.name} />
+                        <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 hover:text-blue-700 shadow-sm transition-colors border border-slate-100">Buka di Maps ↗</a>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="mt-auto pt-4 border-t border-slate-50 flex gap-3">
+                  <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
+                    <MessageSquare className="w-4 h-4" /> Chat
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!pickupTime) {
+                        alert("Silakan pilih waktu penjemputan terlebih dahulu.");
+                        return;
+                      }
+                      handleClaim(selectedFood.id, pickupTime, claimPortions);
+                    }}
+                    className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center"
+                  >
+                    Klaim Makanan
+                  </button>
+                </div>
+
+                <p className="text-slate-600 text-sm leading-relaxed mb-6">{selectedFood.description || 'Tidak ada catatan.'}</p>
+
+                {canClaim ? (
+                  <div className="pt-4 border-t border-slate-100">
+                    <p className="text-xs text-slate-500 mb-4 text-center">
+                      Setiap penerima hanya bisa klaim <strong className="text-slate-900">1 porsi</strong> per makanan.
+                    </p>
+                    <button
+                      onClick={() => handleClaim(selectedFood.id, 1)}
+                      disabled={claiming}
+                      className="w-full py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all disabled:opacity-60"
+                    >
+                      {claiming ? 'Memproses...' : 'Klaim 1 Porsi'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pt-4 border-t border-slate-100">
+                    <div className="p-5 bg-slate-50 rounded-2xl text-center text-slate-500 font-bold text-sm">
+                      Semua porsi sudah diklaim.
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
-        )}
+          );
+        })()}
       </AnimatePresence>
     </div>
   );
@@ -1562,6 +1865,8 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
 
 // --- Admin Dashboard ---
 const AdminDashboard = ({ user }: { user: User | null }) => {
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [foods, setFoods] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
@@ -1602,15 +1907,37 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
   if (user?.role !== 'admin') return <div className="pt-32 text-center font-black">Akses Ditolak</div>;
 
   const handleDeleteFood = async (id: number) => {
-    if (!confirm('Hapus makanan ini?')) return;
-    await api.delete(`/food/${id}`);
-    setFoods(foods.filter(f => f.id !== id));
+    const ok = await confirmDialog({
+      title: 'Hapus Makanan',
+      message: 'Data makanan akan dihapus permanen. Lanjutkan?',
+      confirmLabel: 'Ya, Hapus',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/food/${id}`);
+      setFoods(foods.filter(f => f.id !== id));
+      toast.success('Makanan dihapus.');
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Gagal menghapus makanan.');
+    }
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (!confirm('Hapus user ini?')) return;
-    await api.delete(`/admin/users/${id}`);
-    setUsers(users.filter(u => u.id !== id));
+    const ok = await confirmDialog({
+      title: 'Hapus User',
+      message: 'User beserta aktivitasnya akan dihapus. Aksi ini tidak bisa dibatalkan.',
+      confirmLabel: 'Ya, Hapus',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/admin/users/${id}`);
+      setUsers(users.filter(u => u.id !== id));
+      toast.success('User dihapus.');
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Gagal menghapus user.');
+    }
   };
 
   // === HANYA MENAMBAHKAN PERHITUNGAN TOTAL DANA SECARA AMAN ===
@@ -1622,7 +1949,7 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
     : 0;
 
   return (
-    <div className="pt-32 pb-20 px-4 max-w-7xl mx-auto">
+    <div className="pt-28 md:pt-32 pb-12 md:pb-20 px-4 max-w-7xl mx-auto">
       <h1 className="text-4xl font-black text-slate-900 mb-12">Admin Panel</h1>
       <div className="grid lg:grid-cols-2 gap-12">
         <div>
@@ -1800,6 +2127,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/explore" element={<ExplorePage user={user} />} />
+            <Route path="/donate" element={<DonatePage user={user} />} />
             <Route path="/forum" element={<ForumPage user={user} />} />
             <Route path="/guidelines" element={<GuidelinePage />} />
             <Route path="/info" element={<HelpInfo />} />
@@ -1856,10 +2184,26 @@ const App = () => {
             <div className="md:justify-self-end md:text-left">
               <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400 mb-5">Informasi</h4>
               <ul className="space-y-3">
-                <li><a href="#" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Tentang Kami</a></li>
-                <li><a href="#" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Kebijakan Privasi</a></li>
-                <li><a href="#" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Syarat & Ketentuan</a></li>
-                <li><a href="#" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Kontak</a></li>
+                <li>
+                  <Link to="/about" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                    <Info className="w-3.5 h-3.5" /> Tentang Kami
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/privacy" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5" /> Kebijakan Privasi
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/terms" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5" /> Syarat & Ketentuan
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/contact" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5" /> Kontak
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>
@@ -1879,6 +2223,8 @@ const App = () => {
           </div>
         </footer>
       </div>
+      </ConfirmProvider>
+      </ToastProvider>
     </Router>
   );
 };
