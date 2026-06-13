@@ -5,7 +5,8 @@ import {
   Heart, Search, LayoutDashboard, LogOut, MapPin, ChevronRight, TrendingUp,
   Globe, Leaf, Clock, X, CheckCircle2, Lock, Mail, MessageSquare,
   User as UserIcon, LogIn, Trash2, PlusCircle,
-  HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon, HelpCircle, Camera, Save, Menu
+  HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon, HelpCircle, Camera, Save, Menu,
+  Info, Shield, FileText, Phone, MessageCircle, Sparkles
 } from 'lucide-react';
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
