@@ -119,7 +119,10 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
     navigate(`/chat?id=${convId}`);
   };
 
-  const activeItems = foods.filter(f => (f.portions - f.claimed_portions) > 0 && f.status !== 'completed');
+  const activeItems = foods.filter(f =>
+    Number(f.portions ?? 0) - Number(f.claimed_portions ?? 0) > 0 &&
+    String(f.status ?? '').toLowerCase() !== 'completed'
+  );
   const claimedItems = claims.filter(c => c.status === 'active' || c.status === 'confirmed');
   const completedItems = claims.filter(c => c.status === 'completed');
 
