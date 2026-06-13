@@ -2131,7 +2131,6 @@ const App = () => {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/explore" element={<ExplorePage user={user} />} />
-            <Route path="/donate" element={<DonatePage user={user} />} />
             <Route path="/forum" element={<ForumPage user={user} />} />
             <Route path="/guidelines" element={<GuidelinePage />} />
             <Route path="/info" element={<HelpInfo />} />
