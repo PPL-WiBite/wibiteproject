@@ -2121,6 +2121,8 @@ const App = () => {
 
   return (
     <Router>
+      <ToastProvider>
+      <ConfirmProvider>
       <div className={`min-h-screen flex flex-col bg-slate-50 selection:bg-emerald-500/20 selection:text-emerald-500 ${themeClass}`}>
         <Navbar user={user} onLogout={handleLogout} onUserUpdate={setUser} />
         <main className="flex-1 flex flex-col">
