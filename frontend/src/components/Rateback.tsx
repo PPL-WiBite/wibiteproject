@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Star, Leaf, Send, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { type User } from '@/lib/auth';
+import api from '@/lib/api';
 
 interface RatebackPageProps {
   user: User;
@@ -32,14 +33,24 @@ export default function RatebackPage({ user }: RatebackPageProps) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate submission (clear data and show success state)
-    setIsSubmitted(true);
-    // Reset state values as requested (so the feedback disappears / resets)
-    setRating(0);
-    setSelectedTags([]);
-    setFeedbackText('');
+
+    try {
+      await api.post('/feedback', {
+        message: feedbackText,
+        rating,
+        tags: selectedTags,
+      });
+
+      setIsSubmitted(true);
+      setRating(0);
+      setSelectedTags([]);
+      setFeedbackText('');
+    } catch (error) {
+      console.error(error);
+      alert('Gagal mengirim feedback. Silakan coba lagi.');
+    }
   };
 
   return (

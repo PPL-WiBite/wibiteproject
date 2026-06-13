@@ -74,6 +74,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin Routes
     Route::middleware(AdminMiddleware::class)->prefix('admin')->group(function () {
         Route::get('/users', [AdminController::class, 'users']);
+        Route::get('/feedback', [AdminController::class, 'feedback']);
         Route::delete('/users/{user}', [AdminController::class, 'deleteUser']);
     });
 });

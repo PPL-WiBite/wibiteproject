@@ -1436,11 +1436,11 @@ const DashboardPage = ({ user, onAuthSuccess }: { user: User | null; onAuthSucce
   const editFoodId = editIdStr ? parseInt(editIdStr, 10) : null;
 
   const handleCloseAdd = () => {
-    setSearchParams({});
+    setSearchParams({}, { replace: true });
   };
 
   const handleCloseEdit = () => {
-    setSearchParams({});
+    setSearchParams({}, { replace: true });
   };
 
   if (!user) return <AuthPage type="login" onAuthSuccess={onAuthSuccess} />;
@@ -1615,7 +1615,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
             </button>
             <button
               type="button"
-              onClick={() => navigate('/donasi')}
+              onClick={() => navigate('/dashboard')}
               className="w-full px-4 py-3 text-slate-500 hover:bg-slate-100 hover:text-slate-700 font-bold text-xs rounded-2xl flex items-center gap-3 text-left focus:outline-none transition-colors"
             >
               <HandHeart className="w-4 h-4" />
@@ -1829,15 +1829,21 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
   const confirmDialog = useConfirm();
   const [foods, setFoods] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user?.role !== 'admin') return;
     const fetchData = async () => {
       try {
-        const [fRes, uRes] = await Promise.all([api.get('/food'), api.get('/admin/users')]);
+        const [fRes, uRes, fbRes] = await Promise.all([
+          api.get('/food'),
+          api.get('/admin/users'),
+          api.get('/admin/feedback'),
+        ]);
         setFoods(fRes.data);
         setUsers(uRes.data);
+        setFeedbacks(fbRes.data);
       } catch (error) { console.error(error); }
       finally { setLoading(false); }
     };
@@ -1917,6 +1923,31 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <div className="mt-14">
+        <h2 className="text-2xl font-black text-slate-900 mb-6">Feedback Pengguna ({feedbacks.length})</h2>
+        <div className="bg-white rounded-3xl border border-slate-50 shadow-sm overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-slate-900 text-white"><tr><th className="p-4 text-xs font-black uppercase">User</th><th className="p-4 text-xs font-black uppercase">Rating</th><th className="p-4 text-xs font-black uppercase">Tag</th><th className="p-4 text-xs font-black uppercase">Komentar</th><th className="p-4 text-xs font-black uppercase">Waktu</th></tr></thead>
+            <tbody>
+              {feedbacks.map((fb) => (
+                <tr key={fb.id} className="border-b border-slate-50 text-sm">
+                  <td className="p-4 font-bold">
+                    {fb.user?.name || 'Tidak Diketahui'}
+                    <p className="text-[10px] text-slate-400">{fb.user?.email || '-'}</p>
+                  </td>
+                  <td className="p-4">
+                    <span className="text-[10px] font-black px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">{fb.rating} / 5</span>
+                  </td>
+                  <td className="p-4 text-slate-700">{fb.tags?.length ? fb.tags.join(', ') : '-'}</td>
+                  <td className="p-4 text-slate-700">{fb.message || '-'}</td>
+                  <td className="p-4 text-[11px] text-slate-500">{new Date(fb.created_at).toLocaleString('id-ID')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -2050,18 +2081,17 @@ const App = () => {
             </div>
 
             {/* Tautan Cepat */}
-            <div>
+            <div className="md:ml-38">
               <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400 mb-5">Tautan Cepat</h4>
               <ul className="space-y-3">
-                <li><Link to="/explore" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Cari Makanan</Link></li>
                 <li><Link to="/forum" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Forum Komunitas</Link></li>
                 <li><Link to="/guidelines" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Pedoman Donasi</Link></li>
-                <li><Link to="/register" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Daftar Gratis</Link></li>
+                <li><Link to="/rateback" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Rating & Masukan</Link></li>
               </ul>
             </div>
 
             {/* Legal */}
-            <div>
+            <div className="md:justify-self-end md:text-left">
               <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400 mb-5">Informasi</h4>
               <ul className="space-y-3">
                 <li>

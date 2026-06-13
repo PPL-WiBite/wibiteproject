@@ -310,9 +310,11 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Jumlah Porsi</label>
                   <input
                     type="number"
+                    required
+                    placeholder='0'
                     min="1"
                     value={formData.portions}
-                    onChange={e => setFormData({ ...formData, portions: parseInt(e.target.value) || 1 })}
+                    onChange={e => setFormData({ ...formData, portions: parseInt(e.target.value)})}
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 font-bold text-slate-800"
                   />
                 </div>
@@ -320,10 +322,11 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Berat (KG)</label>
                   <input
                     type="number"
+                    placeholder='0,0'
                     step="0.1"
                     min="0.1"
                     value={formData.weight_kg}
-                    onChange={e => setFormData({ ...formData, weight_kg: parseFloat(e.target.value) || 0.5 })}
+                    onChange={e => setFormData({ ...formData, weight_kg: parseFloat(e.target.value)})}
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 font-bold text-slate-800"
                   />
                 </div>
@@ -428,7 +431,21 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
                 </button>
                 <button
                   type="button"
-                  onClick={() => formData.name ? setCurrentStep(2) : alert('Mohon isi nama makanan.')}
+                  onClick={() => {
+                    if (!formData.name) {
+                      alert('Mohon isi nama makanan.');
+                      return;
+                    }
+                    if (!formData.portions) {
+                      alert('Jumlah porsi minimal 1.');
+                      return;
+                    }
+                    if (!formData.expired_date) {
+                      alert('Mohon isi tanggal kadaluarsa.');
+                      return;
+                    }
+                    setCurrentStep(2);
+                  }}
                   className="flex-1 py-3 px-6 bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2 shadow-md shadow-emerald-700/20"
                 >
                   Lanjut <ArrowRight className="w-4 h-4" />
@@ -485,7 +502,7 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
                       initialLat={formData.lat || undefined}
                       initialLng={formData.lng || undefined}
                       initialAddress={formData.pickup_address}
-                      renderSearch={setMapSearchNode}
+                      renderSearch={(el) => { setMapSearchNode(el); return el; }}
                     />
                   </div>
                 </div>
