@@ -22,6 +22,8 @@ import HelpInfo from '@/components/HelpInfo';
 import MapPicker from '@/components/MapPicker';
 import RatebackPage from '@/components/Rateback';
 import DonationFinancial from '@/components/DonationFinancial';
+import { ToastProvider } from '@/components/Toast';
+import { ConfirmProvider } from '@/components/Confirm';
 
 // --- Navbar ---
 const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout: () => void; onUserUpdate?: (user: User) => void }) => {
