@@ -22,6 +22,7 @@ class Food extends Model
         'lat',
         'lng',
         'expired_date',
+        'expired_at',
         'description',
         'category',
         'status',
@@ -36,6 +37,7 @@ class Food extends Model
     {
         return [
             'claimed_at' => 'datetime',
+            'expired_at' => 'datetime',
             'weight_kg' => 'decimal:2',
             'lat' => 'decimal:7',
             'lng' => 'decimal:7',

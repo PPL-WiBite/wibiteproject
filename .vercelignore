@@ -1,0 +1,6 @@
+/vendor
+/node_modules
+/frontend/node_modules
+/database/*.sqlite
+/.git
+/.vscode
