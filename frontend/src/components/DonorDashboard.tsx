@@ -8,6 +8,7 @@ import { type User } from '@/lib/auth';
 import api from '@/lib/api';
 import MapPicker from './MapPicker';
 import MapPreview from './MapPreview';
+import DonationFinancial from './DonationFinancial';
 
 interface DonorDashboardProps {
   user: User;

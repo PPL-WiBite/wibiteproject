@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
+import { createConversationFromFood } from '@/lib/chat';
 import ForumPage from '@/components/Forum';
 import DonorDashboard from '@/components/DonorDashboard';
 import ReceiverDashboard from '@/components/ReceiverDashboard';
@@ -20,6 +21,7 @@ import ClaimsPage from '@/components/Claims';
 import HelpInfo from '@/components/HelpInfo';
 import MapPicker from '@/components/MapPicker';
 import RatebackPage from '@/components/Rateback';
+import DonationFinancial from '@/components/DonationFinancial';
 
 // --- Navbar ---
 const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout: () => void; onUserUpdate?: (user: User) => void }) => {
@@ -80,39 +82,44 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
         </Link>
 
         {/* TENGAH: Nav menu (absolute, benar-benar rata tengah) */}
-        {user && (
-          <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-4">
-            {user.role === 'donor' ? (
-              <Link to="/dashboard" className={navLinkClass('/dashboard')}>
-                Donasi Makanan
-                {location.pathname === '/dashboard' && (
-                  <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-                )}
-              </Link>
-            ) : (
-              <>
-                <Link to="/explore" className={navLinkClass('/explore')}>
-                  Cari Makanan
-                  {location.pathname === '/explore' && (
-                    <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-                  )}
-                </Link>
-                <Link to="/klaim" className={navLinkClass('/klaim')}>
-                  Klaim Saya
-                  {location.pathname === '/klaim' && (
-                    <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-                  )}
-                </Link>
-              </>
-            )}
-            <Link to="/forum" className={navLinkClass('/forum')}>
-              Forum
-              {location.pathname === '/forum' && (
-                <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-              )}
-            </Link>
-          </div>
+{user && (
+  <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-4">
+
+    {user.role === 'admin' ? (
+      <Link to="/admin" className={navLinkClass('/admin')}>
+        Admin Panel
+        {location.pathname === '/admin' && (
+          <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
         )}
+      </Link>
+    ) : user.role === 'donor' ? (
+      <Link to="/dashboard" className={navLinkClass('/dashboard')}>
+        Donasi Makanan
+        {location.pathname === '/dashboard' && (
+          <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+        )}
+      </Link>
+    ) : (
+      <>
+        <Link to="/explore" className={navLinkClass('/explore')}>
+          Cari Makanan
+        </Link>
+
+        <Link to="/klaim" className={navLinkClass('/klaim')}>
+          Klaim Saya
+        </Link>
+      </>
+    )}
+
+    <Link to="/forum" className={navLinkClass('/forum')}>
+      Forum
+      {location.pathname === '/forum' && (
+        <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+      )}
+    </Link>
+
+  </div>
+)}
 
         {/* KANAN: Auth / User menu */}
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
@@ -145,15 +152,11 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
                   </button>
                 </div>
               )}
-
-              {user.role === 'admin' && (
-                <Link
-                  to="/admin"
-                  className="hidden sm:inline-flex text-[11px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-2 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-colors"
-                >
-                  Admin
-                </Link>
-              )}
+{user.role === 'admin' && (
+  <span className="px-3 py-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 text-xs font-black uppercase tracking-widest">
+    ADMIN
+  </span>
+)}
               <Link
                 to="/profile"
                 className="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-emerald-100"
@@ -699,39 +702,7 @@ const ExplorePage = ({ user }: { user: User | null }) => {
   const handleChatDonor = (food: any) => {
     if (!user) return alert('Silakan masuk untuk berkirim pesan dengan donatur.');
 
-    const savedConvs = localStorage.getItem('wibite_conversations');
-    const convs = savedConvs ? JSON.parse(savedConvs) : [];
-    const donorId = food.donor_id || 1;
-
-    const existingIndex = convs.findIndex((c: any) => c.donor_id === donorId);
-
-    let convId;
-    if (existingIndex > -1) {
-      convId = convs[existingIndex].id;
-    } else {
-      convId = Date.now();
-      const newConv = {
-        id: convId,
-        donor_id: donorId,
-        name: food.donor_name || 'Donatur',
-        role: 'Pendonor',
-        time: 'Baru',
-        lastMsg: `Tanya tentang donasi "${food.name}"`,
-        unread: 0,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(food.donor_name || 'Donatur')}&background=10b981&color=fff`,
-        foodName: food.name
-      };
-      convs.unshift(newConv);
-      localStorage.setItem('wibite_conversations', JSON.stringify(convs));
-
-      const savedMsgs = localStorage.getItem(`wibite_msgs_${convId}`);
-      if (!savedMsgs) {
-        const welcomeMsgs = [
-          { id: 1, senderId: donorId, text: `Halo! Terima kasih tertarik dengan donasi "${food.name}". Ada yang bisa saya bantu?`, time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), isMe: false }
-        ];
-        localStorage.setItem(`wibite_msgs_${convId}`, JSON.stringify(welcomeMsgs));
-      }
-    }
+    const convId = createConversationFromFood(food, user.id);
 
     setSelectedFood(null);
     navigate(`/chat?id=${convId}`);
@@ -1199,6 +1170,41 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                   </button>
                 </div>
 
+                <div className="mb-8 flex-grow">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                    Alamat Penjemputan
+                  </p>
+                  <p className="text-slate-700 text-sm font-medium mb-4 leading-relaxed">{selectedFood.pickup_address}</p>
+                  {(() => {
+                    const lat = selectedFood.lat ? parseFloat(selectedFood.lat) : -8.6704;
+                    const lng = selectedFood.lng ? parseFloat(selectedFood.lng) : 115.2126;
+                    return (
+                      <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative">
+                        <MapPreview lat={lat} lng={lng} label={selectedFood.name} />
+                        <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 hover:text-blue-700 shadow-sm transition-colors border border-slate-100">Buka di Maps ↗</a>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="mt-auto pt-4 border-t border-slate-50 flex gap-3">
+                  <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
+                    <MessageSquare className="w-4 h-4" /> Chat
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!pickupTime) {
+                        alert("Silakan pilih waktu penjemputan terlebih dahulu.");
+                        return;
+                      }
+                      handleClaim(selectedFood.id, pickupTime, claimPortions);
+                    }}
+                    className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center"
+                  >
+                    Klaim Makanan
+                  </button>
+                </div>
+
                 <p className="text-slate-600 text-sm leading-relaxed mb-6">{selectedFood.description || 'Tidak ada catatan.'}</p>
 
                 {canClaim ? (
@@ -1253,7 +1259,14 @@ const AuthPage = ({ type, onAuthSuccess }: { type: 'login' | 'register'; onAuthS
         loggedInUser = await authService.register({ name, email, password, role });
       }
       onAuthSuccess(loggedInUser);
-      navigate('/dashboard');
+
+      if (loggedInUser.role === 'admin') {
+        navigate('/admin');
+      } else if (loggedInUser.role === 'receiver') {
+        navigate('/explore');
+      } else {
+  navigate('/dashboard');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data?.errors?.email?.[0] || 'Terjadi kesalahan.');
     } finally {
@@ -1518,6 +1531,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
     name: user?.name || '',
     email: user?.email || '',
     address: user?.address || '',
+    phone: user?.phone || '',
   });
 
   const localKey = `wibite_profile_${user?.id}`;
@@ -1534,6 +1548,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
   const [loading, setLoading] = useState(false);
   const [foodSaved, setFoodSaved] = useState(12); // default mock stat or from API
   const [co2Saved, setCo2Saved] = useState(12);
+  const [showPhotoMenu, setShowPhotoMenu] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -1554,7 +1569,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
     fetchStats();
   }, [user]);
 
-  if (!user) return <AuthPage type="login" />;
+  if (!user) return <Navigate to="/login" />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1563,6 +1578,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
       const res = await api.put('/users/profile', {
         name: formData.name,
         address: formData.address,
+        phone: formData.phone,
       });
       // Save local fields
       localStorage.setItem(localKey, JSON.stringify(localData));
@@ -1615,7 +1631,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
             </button>
             <button
               type="button"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/donation')}
               className="w-full px-4 py-3 text-slate-500 hover:bg-slate-100 hover:text-slate-700 font-bold text-xs rounded-2xl flex items-center gap-3 text-left focus:outline-none transition-colors"
             >
               <HandHeart className="w-4 h-4" />
@@ -1659,54 +1675,67 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
             </div>
 
             {/* Avatar Upload */}
-            <div className="flex items-center gap-6 py-4 border-b border-slate-50">
-              <div className="relative w-20 h-20 shrink-0">
+            <div className="flex flex-col items-center justify-center py-6 border-b border-slate-50 w-full">
+            
+              <div className="relative w-32 h-32 shrink-0">
                 {localData.avatar ? (
                   <img
                     src={localData.avatar}
                     alt="Avatar Profile"
-                    className="w-full h-full object-cover rounded-full border-2 border-white shadow-md bg-slate-100"
+                    className="w-full h-full object-cover rounded-full border-4 border-white shadow-lg bg-slate-100"
                   />
                 ) : (
-                  <div className="w-full h-full rounded-full border-2 border-slate-200 border-dashed bg-slate-50 flex items-center justify-center text-slate-400 shadow-inner">
-                    <UserIcon className="w-8 h-8" />
+                  <div className="w-full h-full rounded-full border-4 border-slate-200 border-dashed bg-slate-50 flex items-center justify-center text-slate-400 shadow-inner">
+                    <UserIcon className="w-12 h-12" />
                   </div>
                 )}
-                <label className="absolute bottom-0 right-0 w-7 h-7 bg-emerald-600 border-2 border-white rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-emerald-700 transition-colors">
-                  <Camera className="w-3.5 h-3.5" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs font-black text-slate-800">Foto Profil Anda</p>
-                <p className="text-[10px] text-slate-400 font-semibold">PNG atau JPG, maksimal 5MB.</p>
-                <div className="flex gap-2">
-                  <label className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer">
-                    Unggah Baru
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarChange}
-                      className="hidden"
-                    />
-                  </label>
+
+               
+                <div className="absolute bottom-1 right-1 z-10">
                   <button
                     type="button"
-                    onClick={handleRemoveAvatar}
-                    className="px-3 py-1.5 border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold text-[10px] rounded-lg transition-colors"
+                    onClick={() => setShowPhotoMenu(!showPhotoMenu)}
+                    className="w-9 h-9 bg-emerald-600 border-2 border-white rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-emerald-700 transition-colors focus:outline-none shadow-md"
                   >
-                    Hapus
+                    <Camera className="w-4 h-4" />
                   </button>
+
+                 
+                  {showPhotoMenu && (
+                    <div className="absolute top-11 left-1/2 -translate-x-1/2 z-30 bg-white border border-slate-100 shadow-xl rounded-xl p-2 flex flex-col gap-1 w-28 animate-in fade-in zoom-in-95 duration-100">
+                      
+                      {/* Tambah */}
+                      <label className="w-full text-center px-2 py-1.5 bg-emerald-5 text-emerald-700 hover:bg-emerald-100 font-bold text-[10px] rounded-lg transition-colors cursor-pointer block">
+                        Tambah
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            handleAvatarChange(e);
+                            setShowPhotoMenu(false);
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {/* Hapus */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleRemoveAvatar();
+                          setShowPhotoMenu(false);
+                        }}
+                        className="w-full text-center px-2 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-[10px] rounded-lg transition-colors"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Fields Grid */}
+            {/* Fields Grid*/}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Nama Lengkap</label>
@@ -1732,6 +1761,18 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
               </div>
             </div>
 
+        
+            <div>
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Nomor Telepon / WhatsApp</label>
+              <input
+                type="tel"
+                value={formData.phone || ''} 
+                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="Contoh: 081234567890"
+                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-bold text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500"
+              />
+            </div>
+
             {/* Address */}
             <div>
               <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Alamat</label>
@@ -1741,6 +1782,21 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
                 placeholder="Masukkan alamat lengkap Anda (Opsional)"
                 className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-semibold text-xs text-slate-850 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 h-16 resize-none"
               />
+            </div>
+
+            
+            <div>
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Bio</label>
+              <textarea
+                maxLength={160}
+                value={localData.bio}
+                onChange={e => setLocalData((prev: any) => ({ ...prev, bio: e.target.value }))}
+                placeholder="Ceritakan sedikit tentang diri Anda atau misi donasi Anda..."
+                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-semibold text-xs text-slate-850 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 h-24 resize-none"
+              />
+              <div className="text-right text-[10px] text-slate-450 font-bold mt-1">
+                {localData.bio.length}/160 karakter
+              </div>
             </div>
 
             {/* Leaflet Map Picker */}
@@ -1761,28 +1817,12 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
                 Lokasi Terkunci
               </div>
             </div>
-
-            {/* Bio */}
-            <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Bio</label>
-              <textarea
-                maxLength={160}
-                value={localData.bio}
-                onChange={e => setLocalData((prev: any) => ({ ...prev, bio: e.target.value }))}
-                placeholder="Ceritakan sedikit tentang diri Anda atau misi donasi Anda..."
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-semibold text-xs text-slate-850 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 h-24 resize-none"
-              />
-              <div className="text-right text-[10px] text-slate-450 font-bold mt-1">
-                {localData.bio.length}/160 karakter
-              </div>
-            </div>
-
             {/* Submit & Cancel */}
             <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
               <button
                 type="button"
                 onClick={() => {
-                  setFormData({ name: user.name || '', email: user.email || '', address: user.address || '' });
+                  setFormData({ name: user.name || '', email: user.email || '', address: user.address || '', phone: user.phone || '' });
                   const stored = localStorage.getItem(localKey);
                   if (stored) setLocalData(JSON.parse(stored));
                 }}
@@ -1831,6 +1871,9 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // === HANYA MENAMBAHKAN STATE UNTUK DONASI FINANSIAL ===
+  const [financialDonations, setFinancialDonations] = useState<any[]>([]);
 
   useEffect(() => {
     if (user?.role !== 'admin') return;
@@ -1844,6 +1887,17 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
         setFoods(fRes.data);
         setUsers(uRes.data);
         setFeedbacks(fbRes.data);
+
+        // === HANYA MENAMBAHKAN PENGAMBILAN DATA FINANSIAL ===
+        try {
+          const finRes = await api.get('/admin/financial-donations');
+          setFinancialDonations(finRes.data);
+        } catch (finError) {
+          console.error("Gagal mengambil API finansial, mencoba localStorage:", finError);
+          const savedFin = localStorage.getItem('wibite_financial_donations');
+          if (savedFin) setFinancialDonations(JSON.parse(savedFin));
+        }
+
       } catch (error) { console.error(error); }
       finally { setLoading(false); }
     };
@@ -1885,6 +1939,14 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
       toast.error(e.response?.data?.error || 'Gagal menghapus user.');
     }
   };
+
+  // === HANYA MENAMBAHKAN PERHITUNGAN TOTAL DANA SECARA AMAN ===
+  const totalDanaTerkumpul = Array.isArray(financialDonations)
+    ? financialDonations.reduce((acc: number, curr: any) => {
+        const nilai = curr && curr.amount ? Number(curr.amount) : 0;
+        return acc + (isNaN(nilai) ? 0 : nilai);
+      }, 0)
+    : 0;
 
   return (
     <div className="pt-28 md:pt-32 pb-12 md:pb-20 px-4 max-w-7xl mx-auto">
@@ -1950,6 +2012,63 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
           </table>
         </div>
       </div>
+
+      {/* === HANYA MENAMBAHKAN TABEL SEKSI BARU DI BAGIAN PALING BAWAH === */}
+      <div className="mt-14">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <h2 className="text-2xl font-black text-slate-900">Riwayat Donasi ({financialDonations.length})</h2>
+          <div className="bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-2xl self-start sm:self-auto">
+            <span className="text-xs font-black text-slate-500 block uppercase tracking-wider">Total Saldo Masuk</span>
+            <span className="text-xl font-black text-emerald-600">
+              Rp {totalDanaTerkumpul.toLocaleString('id-ID')}
+            </span>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-3xl border border-slate-50 shadow-sm overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-slate-900 text-white">
+              <tr>
+                <th className="p-4 text-xs font-black uppercase">Nama Donatur</th>
+                <th className="p-4 text-xs font-black uppercase">Nominal</th>
+                <th className="p-4 text-xs font-black uppercase">Metode</th>
+                <th className="p-4 text-xs font-black uppercase">Pesan & Dukungan</th>
+                <th className="p-4 text-xs font-black uppercase">Waktu</th>
+              </tr>
+            </thead>
+            <tbody>
+              {financialDonations.length > 0 ? (
+                financialDonations.map((donasi) => (
+                  <tr key={donasi.id} className="border-b border-slate-50 text-sm">
+                    <td className="p-4 font-bold text-slate-900">
+                      {donasi.donorName || donasi.user_name || 'Anonim'}
+                    </td>
+                    <td className="p-4 font-black text-emerald-600">
+                      Rp {Number(donasi.amount || 0).toLocaleString('id-ID')}
+                    </td>
+                    <td className="p-4">
+                      <span className="text-[10px] font-black px-2 py-1 bg-slate-100 text-slate-600 rounded-full uppercase">
+                        {donasi.paymentMethod || donasi.payment_method || '-'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-slate-600 max-w-xs truncate">{donasi.notes || donasi.message || '-'}</td>
+                    <td className="p-4 text-[11px] text-slate-500">
+                      {donasi.created_at ? new Date(donasi.created_at).toLocaleString('id-ID') : (donasi.date || '-')}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-sm font-bold text-slate-400">
+                    Belum ada Donasi masuk.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   );
 };
@@ -1971,32 +2090,13 @@ const App = () => {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        const savedUserId = localStorage.getItem('wibite_user_id');
-        if (savedUserId && savedUserId !== String(user.id)) {
-          // Logged in user changed or DB reset, clear local chat data
-          localStorage.removeItem('wibite_conversations');
-          const keysToRemove = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('wibite_msgs_')) {
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach(k => localStorage.removeItem(k));
-        }
+        // Keep conversations/messages persisted across users on the same browser.
+        // Previously we cleared all `wibite_msgs_` when `wibite_user_id` changed,
+        // which caused sent messages to disappear when switching users during testing.
         localStorage.setItem('wibite_user_id', String(user.id));
       } else {
-        // No user logged in, clear chat storage
+        // No user logged in, keep chat storage to preserve local conversation history.
         localStorage.removeItem('wibite_user_id');
-        localStorage.removeItem('wibite_conversations');
-        const keysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith('wibite_msgs_')) {
-            keysToRemove.push(key);
-          }
-        }
-        keysToRemove.forEach(k => localStorage.removeItem(k));
       }
     }
   }, [user, loading]);
@@ -2004,18 +2104,7 @@ const App = () => {
   const handleLogout = async () => {
     await authService.logout();
     
-    // Clear chat storage for security and privacy
     localStorage.removeItem('wibite_user_id');
-    localStorage.removeItem('wibite_conversations');
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('wibite_msgs_')) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach(k => localStorage.removeItem(k));
-
     setUser(null);
     window.location.href = '/';
   };
@@ -2051,6 +2140,7 @@ const App = () => {
             <Route path="/admin" element={<AdminDashboard user={user} />} />
             <Route path="/login" element={<AuthPage type="login" onAuthSuccess={setUser} />} />
             <Route path="/register" element={<AuthPage type="register" onAuthSuccess={setUser} />} />
+            <Route path="/donation" element={<DonationFinancial />} />
           </Routes>
         </main>
         <footer className="bg-white border-t border-slate-100 mt-auto">

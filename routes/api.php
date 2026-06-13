@@ -9,6 +9,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Controllers\DonationFinancialController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -76,5 +77,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users', [AdminController::class, 'users']);
         Route::get('/feedback', [AdminController::class, 'feedback']);
         Route::delete('/users/{user}', [AdminController::class, 'deleteUser']);
+        Route::get('/financial-donations', [AdminController::class, 'financialDonations']);
     });
 });
+
+// Financial Donations (public - tidak perlu login)
+Route::post('/financial-donations', [DonationFinancialController::class, 'store']);

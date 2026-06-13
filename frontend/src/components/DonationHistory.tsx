@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { type User } from '@/lib/auth';
 import api from '@/lib/api';
 import MapPreview from './MapPreview';
+import { createConversation } from '@/lib/chat';
 
 interface DonationHistoryProps {
   user: User;
@@ -97,36 +98,24 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
 
   const handleChatReceiver = (receiver: any, food: any) => {
     if (!receiver) return;
-    const savedConvs = localStorage.getItem('wibite_conversations');
-    const convs = savedConvs ? JSON.parse(savedConvs) : [];
-    
-    const receiverId = receiver.id;
-    const existingIndex = convs.findIndex((c: any) => c.receiver_id === receiverId);
 
-    let convId;
-    if (existingIndex > -1) {
-      convId = convs[existingIndex].id;
-    } else {
-      convId = Date.now();
-      const newConv = {
-        id: convId,
-        receiver_id: receiverId,
-        name: receiver.name || 'Penerima',
-        role: 'Penerima',
-        time: 'Baru',
-        lastMsg: `Tanya tentang klaim donasi "${food?.name || 'Makanan'}"`,
-        unread: 0,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(receiver.name || 'Penerima')}&background=3b82f6&color=fff`,
-        foodName: food?.name || 'Makanan'
-      };
-      convs.unshift(newConv);
-      localStorage.setItem('wibite_conversations', JSON.stringify(convs));
+    const stub = {
+      donor_id: food?.donor_id || food?.donor?.id || 1,
+      receiver_id: receiver.id,
+      name: receiver.name || 'Penerima',
+      role: 'Penerima',
+      time: 'Baru',
+      lastMsg: `Tanya tentang klaim donasi "${food?.name || 'Makanan'}"`,
+      unread: 0,
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(receiver.name || 'Penerima')}&background=3b82f6&color=fff`,
+      foodName: food?.name || 'Makanan'
+    };
 
-      const welcomeMsgs = [
-        { id: 1, senderId: receiverId, text: `Halo! Saya ingin mengambil donasi "${food?.name || 'Makanan'}". Kapan saya bisa menjemputnya?`, time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), isMe: false }
-      ];
-      localStorage.setItem(`wibite_msgs_${convId}`, JSON.stringify(welcomeMsgs));
-    }
+    const welcomeMsgs = [
+      { id: 1, senderId: receiver.id, text: `Halo! Saya ingin mengambil donasi "${food?.name || 'Makanan'}". Kapan saya bisa menjemputnya?`, time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), isMe: false }
+    ];
+
+    const convId = createConversation(stub, welcomeMsgs);
     navigate(`/chat?id=${convId}`);
   };
 
@@ -213,20 +202,24 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
 
                   {/* Body */}
                   <div className="p-6 flex flex-col flex-grow">
-                    <span className="text-emerald-600 font-semibold text-sm mb-1">
+                    {/* 1. Nama Makanan*/}
+                    <h4 className="text-xl font-bold text-slate-900 leading-tight mb-1">
+                      {food.name}
+                    </h4>
+
+                    {/* 2. Kategori Makanan */}
+                    <span className="text-emerald-650 font-semibold text-sm mb-4 text-emerald-600">
                       {food.category || 'Makanan Matang'}
                     </span>
-
-                    <h4 className="text-xl font-bold text-slate-900 leading-tight mb-4">{food.name}</h4>
 
                     {/* Info rows */}
                     <div className="space-y-2 mb-6">
                       <div className="flex items-center gap-2.5 text-slate-500 text-sm">
-                        <span className="text-base">📦</span>
+                       
                         <span>{food.portions - food.claimed_portions} Porsi Tersedia / {food.portions} Porsi Asli</span>
                       </div>
                       <div className="flex items-center gap-2.5 text-slate-500 text-sm">
-                        <span className="text-base">📅</span>
+                       
                         <span>Diposting: {new Date(food.created_at || Date.now()).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
                     </div>
@@ -311,11 +304,15 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
 
                   {/* Body */}
                   <div className="p-6 flex flex-col flex-grow">
-                    <span className="text-amber-600 font-semibold text-sm mb-1">
+                    {/* 1. Nama Makanan  */}
+                    <h4 className="text-xl font-bold text-slate-900 leading-tight mb-1">
+                      {claim.food?.name}
+                    </h4>
+
+                    {/* 2. Kategori Makanan */}
+                    <span className="text-amber-600 font-semibold text-sm mb-4">
                       {claim.food?.category || 'Makanan Matang'}
                     </span>
-
-                    <h4 className="text-xl font-bold text-slate-900 leading-tight mb-2">{claim.food?.name}</h4>
                     
                     {/* Receiver Info */}
                     <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center gap-3 mb-4">
@@ -331,11 +328,11 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
                     {/* Info rows */}
                     <div className="space-y-2 mb-6">
                       <div className="flex items-center gap-2.5 text-slate-500 text-sm">
-                        <span className="text-base">📦</span>
+                        
                         <span>{claim.portions} Porsi Diklaim</span>
                       </div>
                       <div className="flex items-center gap-2.5 text-slate-500 text-sm">
-                        <span className="text-base">🕒</span>
+                        
                         <span className="font-bold text-amber-600">Rencana Ambil: {new Date(claim.pickup_time).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                       </div>
                     </div>
@@ -455,42 +452,44 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
 
                   {/* Body */}
                   <div className="p-6 flex flex-col flex-grow">
-                    <span className="text-slate-500 font-semibold text-sm mb-1">
+                    {/* 1. Nama Makanan*/}
+                    <h4 className="text-xl font-bold text-slate-900 leading-tight mb-1">
+                      {claim.food?.name}
+                    </h4>
+
+                    {/* 2. Kategori Makanan */}
+                    <span className="text-slate-500 font-semibold text-sm mb-4">
                       {claim.food?.category || 'Makanan Matang'}
                     </span>
-
-                    <h4 className="text-xl font-bold text-slate-900 leading-tight mb-2">{claim.food?.name}</h4>
                     
-                    {/* Receiver Info */}
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center gap-3 mb-4">
-                      <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden shrink-0">
-                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(claim.receiver?.name || 'Penerima')}&background=e2e8f0&color=475569`} className="w-full h-full object-cover" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-400 font-semibold">Diterima Oleh</p>
-                        <p className="text-sm font-bold text-slate-800">{claim.receiver?.name || 'Penerima'}</p>
-                      </div>
-                    </div>
-
-                    {/* Info rows */}
-                    <div className="space-y-2 mb-6">
+                    {/* Info Rows */}
+                    <div className="space-y-2 mb-4">
+                      {/* 3. Jumlah Porsi */}
                       <div className="flex items-center gap-2.5 text-slate-500 text-sm">
-                        <span className="text-base">📦</span>
+                    
                         <span>{claim.portions} Porsi Selesai Diambil</span>
                       </div>
+                      {/* 4. Waktu Selesai */}
                       <div className="flex items-center gap-2.5 text-slate-500 text-sm">
-                        <span className="text-base">📅</span>
+                        
                         <span>Selesai pada: {new Date(claim.updated_at || Date.now()).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <button
-                      onClick={() => setSelectedFoodDetail(claim.food)}
-                      className="w-full py-3.5 border-2 border-slate-200 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-center mt-auto"
-                    >
-                      Detail Makanan
-                    </button>
+                    {/* 5. Nama Penerima  */}
+                    <div className="text-sm font-medium text-slate-600 mb-4 border-t border-slate-100 pt-3">
+                      Diterima oleh: <span className="font-bold text-slate-800">{claim.receiver?.name || 'Penerima'}</span>
+                    </div>
+
+                    {/* 6. Button Detail  */}
+                    <div className="flex justify-end mt-auto">
+                      <button
+                        onClick={() => setSelectedFoodDetail(claim.food)}
+                        className="px-5 py-2 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-center"
+                      >
+                        Detail Makanan
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
