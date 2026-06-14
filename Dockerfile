@@ -29,12 +29,11 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
-    sqlite3 \
-    libsqlite3-dev \
+    libpq-dev \
     unzip \
     git \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_mysql pdo_sqlite mbstring exif pcntl bcmath gd zip \
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip \
     && rm -rf /var/lib/apt/lists/*
 
 # Enable Apache mod_rewrite untuk Laravel pretty URL
@@ -70,12 +69,6 @@ RUN composer dump-autoload --optimize --no-dev
 # Set permission untuk storage & cache
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
-
-# Buat file SQLite + folder database
-RUN mkdir -p /var/www/html/database \
-    && touch /var/www/html/database/database.sqlite \
-    && chown -R www-data:www-data /var/www/html/database \
-    && chmod -R 775 /var/www/html/database
 
 # Script start: migrate + cache + jalankan Apache
 COPY docker/start.sh /usr/local/bin/start.sh
