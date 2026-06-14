@@ -19,19 +19,9 @@ services:
       - key: LOG_LEVEL
         value: error
       - key: DB_CONNECTION
-        value: pgsql
-      - key: DB_HOST
-        value: ep-lingering-lab-aoqd958q-pooler.c-2.ap-southeast-1.aws.neon.tech
-      - key: DB_PORT
-        value: "5432"
+        value: sqlite
       - key: DB_DATABASE
-        value: neondb
-      - key: DB_USERNAME
-        value: neondb_owner
-      - key: DB_PASSWORD
-        value: "npg_kv40DHWftrCB"
-      - key: DB_SSLMODE
-        value: require
+        value: /var/www/html/database/database.sqlite
       - key: SESSION_DRIVER
         value: database
       - key: CACHE_STORE

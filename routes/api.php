@@ -5,11 +5,9 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\ForumController;
-use App\Http\Controllers\MessageController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\AdminMiddleware;
-use App\Http\Controllers\DonationFinancialController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -57,11 +55,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Claim
     Route::post('/claim', [FoodController::class, 'claim']);
     Route::post('/claims/complete', [FoodController::class, 'completeClaim']);
-    Route::post('/claims/{claim}/complete', [FoodController::class, 'completeSingleClaim']);
-    Route::post('/claims/{claim}/confirm', [FoodController::class, 'confirmClaim']);
-    Route::post('/claims/{claim}/reject', [FoodController::class, 'rejectClaim']);
-    Route::get('/claims', [FoodController::class, 'getClaims']);
-    Route::get('/donor/claims', [FoodController::class, 'getDonorClaims']);
 
     // Forum - CRUD
     Route::post('/forum', [ForumController::class, 'store']);
@@ -75,11 +68,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin Routes
     Route::middleware(AdminMiddleware::class)->prefix('admin')->group(function () {
         Route::get('/users', [AdminController::class, 'users']);
-        Route::get('/feedback', [AdminController::class, 'feedback']);
         Route::delete('/users/{user}', [AdminController::class, 'deleteUser']);
-        Route::get('/financial-donations', [AdminController::class, 'financialDonations']);
     });
 });
-
-// Financial Donations (public - tidak perlu login)
-Route::post('/financial-donations', [DonationFinancialController::class, 'store']);

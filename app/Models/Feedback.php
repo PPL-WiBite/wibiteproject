@@ -16,11 +16,6 @@ class Feedback extends Model
         'user_id',
         'message',
         'rating',
-        'tags',
-    ];
-
-    protected $casts = [
-        'tags' => 'array',
     ];
 
     public function user(): BelongsTo
