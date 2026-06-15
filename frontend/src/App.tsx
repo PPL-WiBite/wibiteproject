@@ -22,13 +22,21 @@ import HelpInfo from '@/components/HelpInfo';
 import MapPicker from '@/components/MapPicker';
 import RatebackPage from '@/components/Rateback';
 import DonationFinancial from '@/components/DonationFinancial';
+import { ToastProvider, useToast } from '@/components/Toast';
+import { ConfirmProvider, useConfirm } from '@/components/Confirm';
 
 // --- Navbar ---
 const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout: () => void; onUserUpdate?: (user: User) => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [roleLoading, setRoleLoading] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const mobileLinks = [
+    { to: '/explore', label: 'Cari Makanan' },
+    { to: '/forum', label: 'Forum' },
+    { to: '/info', label: 'Info & Bantuan' },
+  ];
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
@@ -641,6 +649,7 @@ const getRemaining = (food: any): number => {
 const ExplorePage = ({ user }: { user: User | null }) => {
   const toast = useToast();
   const [foods, setFoods] = useState<any[]>([]);
+  const [claiming, setClaiming] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFood, setSelectedFood] = useState<any>(null);
@@ -1213,7 +1222,7 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                       Setiap penerima hanya bisa klaim <strong className="text-slate-900">1 porsi</strong> per makanan.
                     </p>
                     <button
-                      onClick={() => handleClaim(selectedFood.id, 1)}
+                      onClick={() => handleClaim(selectedFood.id, pickupTime, claimPortions)}
                       disabled={claiming}
                       className="w-full py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all disabled:opacity-60"
                     >
@@ -1279,14 +1288,6 @@ const AuthPage = ({ type, onAuthSuccess }: { type: 'login' | 'register'; onAuthS
     <div className="min-h-screen flex flex-col md:flex-row bg-white">
       {/* KIRI: Showcase panel (hidden di mobile) */}
       <div className="hidden md:flex md:w-1/2 bg-emerald-500 relative overflow-hidden items-center justify-center p-12 lg:p-20">
-        {/* Background image with overlay */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1488459718432-068514d04736?ixlib=rb-4.0.3&auto=format&fit=crop&q=80&w=2070"
-            className="w-full h-full object-cover opacity-30 mix-blend-overlay"
-            alt="Komunitas berbagi makanan"
-          />
-        </div>
 
         {/* Decorative blobs */}
         <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse" />
@@ -2137,7 +2138,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/explore" element={<ExplorePage user={user} />} />
-            <Route path="/donate" element={<DonatePage user={user} />} />
+            <Route path="/donate" element={<DonationFinancial />} />
             <Route path="/forum" element={<ForumPage user={user} />} />
             <Route path="/guidelines" element={<GuidelinePage />} />
             <Route path="/info" element={<HelpInfo />} />

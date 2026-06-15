@@ -159,13 +159,15 @@ class FoodController extends Controller
         ]);
 
         $user = $request->user();
-        $requestedPortions = 1;
+        $portionsToClaim = $validated['portions'] ?? 1;
 
-        $claim = DB::transaction(function () use ($validated, $user, $requestedPortions) {
+        $claim = DB::transaction(function () use ($validated, $user, $portionsToClaim) {
+            // Lock food row untuk mencegah race condition
+            $food = Food::lockForUpdate()->findOrFail($validated['food_id']);
+
             // Pastikan user belum punya claim aktif lain
             $hasActiveClaim = Claim::where('receiver_id', $user->id)
                 ->where('status', 'active')
-                ->lockForUpdate()
                 ->exists();
             if ($hasActiveClaim) {
                 abort(response()->json([
@@ -173,73 +175,31 @@ class FoodController extends Controller
                 ], 400));
             }
 
-        $portionsToClaim = $validated['portions'] ?? 1;
-        $remainingPortions = $food->portions - $food->claimed_portions;
-
-        if ($portionsToClaim > $remainingPortions) {
-            return response()->json(['error' => "Hanya tersisa {$remainingPortions} porsi yang tersedia."], 400);
-        }
-
-        // Validate that pickup_time does not exceed expired_date
-        $pickupTime = new \DateTime($validated['pickup_time']);
-        $expiredDate = new \DateTime($food->expired_date);
-
-        if ($pickupTime > $expiredDate) {
-            return response()->json(['error' => 'Waktu penjemputan tidak boleh melebihi batas waktu pengambilan.'], 400);
-        }
-
-        $portionsToClaim = $validated['portions'] ?? 1;
-        $remainingPortions = $food->portions - $food->claimed_portions;
-
-        if ($portionsToClaim > $remainingPortions) {
-            return response()->json(['error' => "Hanya tersisa {$remainingPortions} porsi yang tersedia."], 400);
-        }
-
-        // Validate that pickup_time does not exceed expired_date
-        $pickupTime = new \DateTime($validated['pickup_time']);
-        $expiredDate = new \DateTime($food->expired_date);
-
-        if ($pickupTime > $expiredDate) {
-            return response()->json(['error' => 'Waktu penjemputan tidak boleh melebihi batas waktu pengambilan.'], 400);
-        }
-
-        $newClaimedPortions = $food->claimed_portions + $portionsToClaim;
-        $newStatus = $newClaimedPortions >= $food->portions ? 'claimed' : 'available';
-
-        $food->update([
-            'status' => $newStatus,
-            'claimed_portions' => $newClaimedPortions,
-            'claimed_by' => $user->id,
-            'claimed_at' => now(),
-        ]);
-
-        $verificationCode = strval(rand(100000, 999999));
-
-        Claim::create([
-            'food_id' => $food->id,
-            'receiver_id' => $user->id,
-            'portions' => $portionsToClaim,
-            'status' => 'active',
-            'pickup_time' => $validated['pickup_time'],
-            'code' => $verificationCode,
-        ]);
-
-            $remaining = $food->remainingPortions();
-
-            if ($remaining <= 0) {
+            // Cek sisa porsi
+            $remainingPortions = $food->portions - $food->claimed_portions;
+            if ($remainingPortions <= 0) {
                 abort(response()->json(['error' => 'Porsi makanan sudah habis diklaim.'], 400));
             }
-
-            if ($requestedPortions > $remaining) {
-                abort(response()->json([
-                    'error' => "Porsi yang diminta melebihi sisa porsi. Sisa: {$remaining}.",
-                ], 400));
+            if ($portionsToClaim > $remainingPortions) {
+                abort(response()->json(['error' => "Hanya tersisa {$remainingPortions} porsi yang tersedia."], 400));
             }
 
-            $food->claimed_portions = $food->claimed_portions + $requestedPortions;
+            // Validasi pickup_time tidak melebihi expired_date
+            try {
+                $pickupTime = new \DateTime($validated['pickup_time']);
+                $expiredDate = new \DateTime($food->expired_date);
+                if ($pickupTime > $expiredDate) {
+                    abort(response()->json(['error' => 'Waktu penjemputan tidak boleh melebihi batas waktu pengambilan.'], 400));
+                }
+            } catch (\Exception $e) {
+                // Jika format tanggal tidak valid, lanjutkan saja
+            }
 
-            // Tandai "claimed" hanya kalau semua porsi sudah diambil
-            if ($food->claimed_portions >= $food->portions) {
+            // Update food
+            $newClaimedPortions = $food->claimed_portions + $portionsToClaim;
+            $food->claimed_portions = $newClaimedPortions;
+
+            if ($newClaimedPortions >= $food->portions) {
                 $food->status = 'claimed';
                 if (!$food->claimed_by) {
                     $food->claimed_by = $user->id;
@@ -247,17 +207,19 @@ class FoodController extends Controller
                 if (!$food->claimed_at) {
                     $food->claimed_at = now();
                 }
-            } else {
-                $food->status = 'available';
             }
-
             $food->save();
+
+            // Generate verification code
+            $verificationCode = strval(rand(100000, 999999));
 
             return Claim::create([
                 'food_id' => $food->id,
                 'receiver_id' => $user->id,
-                'portions' => $requestedPortions,
+                'portions' => $portionsToClaim,
                 'status' => 'active',
+                'pickup_time' => $validated['pickup_time'],
+                'code' => $verificationCode,
             ]);
         });
 
@@ -444,96 +406,6 @@ class FoodController extends Controller
 
         $claim->update(['status' => 'completed']);
 
-        // Check if all portions of the food are claimed and completed
-        $food = $claim->food;
-        if ($food) {
-            $allClaims = Claim::where('food_id', $food->id)->get();
-            $activeClaimsCount = $allClaims->whereIn('status', ['active', 'confirmed'])->count();
-
-            if ($activeClaimsCount === 0 && $food->claimed_portions >= $food->portions) {
-                $food->update(['status' => 'completed']);
-            }
-        }
-
-        return response()->json(['success' => true]);
-    }
-
-    public function confirmClaim(Request $request, Claim $claim): JsonResponse
-    {
-        $food = $claim->food;
-        if (!$food || $food->donor_id !== $request->user()->id) {
-            return response()->json(['error' => 'Anda tidak memiliki akses.'], 403);
-        }
-
-        if ($claim->status !== 'active') {
-            return response()->json(['error' => 'Klaim tidak dalam status aktif/menunggu konfirmasi.'], 400);
-        }
-
-        $claim->update(['status' => 'confirmed']);
-
-        return response()->json(['success' => true]);
-    }
-
-    public function rejectClaim(Request $request, Claim $claim): JsonResponse
-    {
-        $food = $claim->food;
-        if (!$food || $food->donor_id !== $request->user()->id) {
-            return response()->json(['error' => 'Anda tidak memiliki akses.'], 403);
-        }
-
-        if (!in_array($claim->status, ['active', 'confirmed'])) {
-            return response()->json(['error' => 'Klaim tidak dapat ditolak.'], 400);
-        }
-
-        // Revert the portions
-        $revertedClaimedPortions = max(0, $food->claimed_portions - $claim->portions);
-        $food->update([
-            'claimed_portions' => $revertedClaimedPortions,
-            'status' => 'available',
-        ]);
-
-        $claim->update(['status' => 'rejected']);
-
-        return response()->json(['success' => true]);
-    }
-
-    public function getClaims(Request $request): JsonResponse
-    {
-        $user = $request->user();
-        $claims = Claim::with('food')
-            ->where('receiver_id', $user->id)
-            ->latest()
-            ->get();
-
-        return response()->json($claims);
-    }
-
-    public function getDonorClaims(Request $request): JsonResponse
-    {
-        $user = $request->user();
-        $claims = Claim::with(['food', 'receiver'])
-            ->whereHas('food', function ($query) use ($user) {
-                $query->where('donor_id', $user->id);
-            })
-            ->latest()
-            ->get();
-
-        return response()->json($claims);
-    }
-
-    public function completeSingleClaim(Request $request, Claim $claim): JsonResponse
-    {
-        $validated = $request->validate([
-            'code' => 'required|string|size:6',
-        ]);
-
-        if ($claim->code && $claim->code !== $validated['code']) {
-            return response()->json(['error' => 'Kode verifikasi salah. Silakan periksa kembali kode dari penerima.'], 400);
-        }
-
-        $claim->update(['status' => 'completed']);
-
-        // Check if all portions of the food are claimed and completed
         $food = $claim->food;
         if ($food) {
             $allClaims = Claim::where('food_id', $food->id)->get();
@@ -586,3 +458,4 @@ class FoodController extends Controller
         return response()->json(['success' => true]);
     }
 }
+
