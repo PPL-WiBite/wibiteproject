@@ -25,9 +25,9 @@ php artisan cache:clear || true
 php artisan route:clear || true
 php artisan view:clear || true
 
-# 4. Migrate (dengan seed, biar akun default ada)
+# 4. Migrate (HANYA update struktur tabel, tanpa seed)
 echo ">> Running migrations..."
-php artisan migrate --force --seed || echo "!! Migrate failed (lanjut anyway)"
+php artisan migrate --force || echo "!! Migrate failed (lanjut anyway)"
 
 # 5. Cache config untuk performa (setelah migrate sukses)
 echo ">> Caching config..."
