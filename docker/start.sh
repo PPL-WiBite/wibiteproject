@@ -27,7 +27,18 @@ php artisan view:clear || true
 
 # 4. Migrate (HANYA update struktur tabel, tanpa seed)
 echo ">> Running migrations..."
-php artisan migrate --force || echo "!! Migrate failed (lanjut anyway)"
+php artisan migrate --force 2>&1 | tee /tmp/migrate.log
+MIGRATE_EXIT=${PIPESTATUS[0]}
+if [ $MIGRATE_EXIT -ne 0 ]; then
+  echo "!! =================================================="
+  echo "!! MIGRATE FAILED (exit code: $MIGRATE_EXIT)"
+  echo "!! Check log above for details."
+  echo "!! =================================================="
+  echo ">> Migration status:"
+  php artisan migrate:status --no-ansi 2>&1 || true
+else
+  echo ">> Migrations completed successfully."
+fi
 
 # 5. Cache config untuk performa (setelah migrate sukses)
 echo ">> Caching config..."
