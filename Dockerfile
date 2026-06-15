@@ -8,7 +8,7 @@ WORKDIR /app/frontend
 # Copy package files dulu untuk caching layer
 COPY frontend/package*.json ./
 
-RUN npm ci
+RUN npm install
 
 # Copy source frontend
 COPY frontend/ ./

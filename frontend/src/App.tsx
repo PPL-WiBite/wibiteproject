@@ -1158,79 +1158,33 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                     })()}
                   </div>
 
-                  <div className="mt-auto pt-4 border-t border-slate-50 flex gap-3">
-                    <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
-                      <MessageSquare className="w-4 h-4" /> Chat
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!pickupTime) {
-                          alert("Silakan pilih waktu penjemputan terlebih dahulu.");
-                          return;
-                        }
-                        handleClaim(selectedFood.id, pickupTime, claimPortions);
-                      }}
-                      className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center"
-                    >
-                      Klaim Makanan
-                    </button>
-                  </div>
-
-                  <div className="mb-8 flex-grow">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                      Alamat Penjemputan
-                    </p>
-                    <p className="text-slate-700 text-sm font-medium mb-4 leading-relaxed">{selectedFood.pickup_address}</p>
-                    {(() => {
-                      const lat = selectedFood.lat ? parseFloat(selectedFood.lat) : -8.6704;
-                      const lng = selectedFood.lng ? parseFloat(selectedFood.lng) : 115.2126;
-                      return (
-                        <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative">
-                          <MapPreview lat={lat} lng={lng} label={selectedFood.name} />
-                          <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 hover:text-blue-700 shadow-sm transition-colors border border-slate-100">Buka di Maps ↗</a>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  <div className="mt-auto pt-4 border-t border-slate-50 flex gap-3">
-                    <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
-                      <MessageSquare className="w-4 h-4" /> Chat
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!pickupTime) {
-                          alert("Silakan pilih waktu penjemputan terlebih dahulu.");
-                          return;
-                        }
-                        handleClaim(selectedFood.id, pickupTime, claimPortions);
-                      }}
-                      className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center"
-                    >
-                      Klaim Makanan
-                    </button>
-                  </div>
-
-                  <p className="text-slate-600 text-sm leading-relaxed mb-6">{selectedFood.description || 'Tidak ada catatan.'}</p>
-
                   {canClaim ? (
-                    <div className="pt-4 border-t border-slate-100">
-                      <p className="text-xs text-slate-500 mb-4 text-center">
-                        Setiap penerima hanya bisa klaim <strong className="text-slate-900">1 porsi</strong> per makanan.
-                      </p>
+                    <div className="mt-auto pt-4 border-t border-slate-100 flex gap-3">
+                      <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
+                        <MessageSquare className="w-4 h-4" /> Chat
+                      </button>
                       <button
-                        onClick={() => handleClaim(selectedFood.id, pickupTime, claimPortions)}
+                        onClick={() => {
+                          if (!pickupTime) {
+                            alert("Silakan pilih waktu penjemputan terlebih dahulu.");
+                            return;
+                          }
+                          handleClaim(selectedFood.id, pickupTime, claimPortions);
+                        }}
                         disabled={claiming}
-                        className="w-full py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all disabled:opacity-60"
+                        className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all disabled:opacity-60"
                       >
-                        {claiming ? 'Memproses...' : 'Klaim 1 Porsi'}
+                        {claiming ? 'Memproses...' : `Klaim ${claimPortions} Porsi`}
                       </button>
                     </div>
                   ) : (
-                    <div className="pt-4 border-t border-slate-100">
-                      <div className="p-5 bg-slate-50 rounded-2xl text-center text-slate-500 font-bold text-sm">
+                    <div className="mt-auto pt-4 border-t border-slate-100 flex flex-col gap-3">
+                      <div className="p-4 bg-slate-50 rounded-2xl text-center text-slate-500 font-bold text-sm">
                         Semua porsi sudah diklaim.
                       </div>
+                      <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 w-full">
+                        <MessageSquare className="w-4 h-4" /> Chat
+                      </button>
                     </div>
                   )}
                 </div>
