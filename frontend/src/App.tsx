@@ -5,7 +5,8 @@ import {
   Heart, Search, LayoutDashboard, LogOut, MapPin, ChevronRight, TrendingUp,
   Globe, Leaf, Clock, Info, X, Star, CheckCircle2, Lock, Mail,
   User as UserIcon, MessageCircle, LogIn, Trash2, Pencil, PlusCircle,
-  HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon, Eye, EyeOff
+  HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon, Eye, EyeOff,
+  Shield, FileText, Phone
 } from 'lucide-react';
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
@@ -90,44 +91,44 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
         </Link>
 
         {/* TENGAH: Nav menu (absolute, benar-benar rata tengah) */}
-{user && (
-  <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-4">
+        {user && (
+          <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-4">
 
-    {user.role === 'admin' ? (
-      <Link to="/admin" className={navLinkClass('/admin')}>
-        Admin Panel
-        {location.pathname === '/admin' && (
-          <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+            {user.role === 'admin' ? (
+              <Link to="/admin" className={navLinkClass('/admin')}>
+                Admin Panel
+                {location.pathname === '/admin' && (
+                  <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+                )}
+              </Link>
+            ) : user.role === 'donor' ? (
+              <Link to="/dashboard" className={navLinkClass('/dashboard')}>
+                Donasi Makanan
+                {location.pathname === '/dashboard' && (
+                  <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+                )}
+              </Link>
+            ) : (
+              <>
+                <Link to="/explore" className={navLinkClass('/explore')}>
+                  Cari Makanan
+                </Link>
+
+                <Link to="/klaim" className={navLinkClass('/klaim')}>
+                  Klaim Saya
+                </Link>
+              </>
+            )}
+
+            <Link to="/forum" className={navLinkClass('/forum')}>
+              Forum
+              {location.pathname === '/forum' && (
+                <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
+              )}
+            </Link>
+
+          </div>
         )}
-      </Link>
-    ) : user.role === 'donor' ? (
-      <Link to="/dashboard" className={navLinkClass('/dashboard')}>
-        Donasi Makanan
-        {location.pathname === '/dashboard' && (
-          <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-        )}
-      </Link>
-    ) : (
-      <>
-        <Link to="/explore" className={navLinkClass('/explore')}>
-          Cari Makanan
-        </Link>
-
-        <Link to="/klaim" className={navLinkClass('/klaim')}>
-          Klaim Saya
-        </Link>
-      </>
-    )}
-
-    <Link to="/forum" className={navLinkClass('/forum')}>
-      Forum
-      {location.pathname === '/forum' && (
-        <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-      )}
-    </Link>
-
-  </div>
-)}
 
         {/* KANAN: Auth / User menu */}
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
@@ -139,32 +140,30 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
                   <button
                     onClick={() => handleRoleToggle('receiver')}
                     disabled={roleLoading}
-                    className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${
-                      user.role === 'receiver'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${user.role === 'receiver'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     Penerima
                   </button>
                   <button
                     onClick={() => handleRoleToggle('donor')}
                     disabled={roleLoading}
-                    className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${
-                      user.role === 'donor'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${user.role === 'donor'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     Donatur
                   </button>
                 </div>
               )}
-{user.role === 'admin' && (
-  <span className="px-3 py-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 text-xs font-black uppercase tracking-widest">
-    ADMIN
-  </span>
-)}
+              {user.role === 'admin' && (
+                <span className="px-3 py-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 text-xs font-black uppercase tracking-widest">
+                  ADMIN
+                </span>
+              )}
               <Link
                 to="/profile"
                 className="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-emerald-100"
@@ -242,11 +241,10 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
                 <Link
                   key={l.to}
                   to={l.to}
-                  className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest ${
-                    location.pathname === l.to
-                      ? 'bg-emerald-500 text-white'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
+                  className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest ${location.pathname === l.to
+                    ? 'bg-emerald-500 text-white'
+                    : 'text-slate-600 hover:bg-slate-50'
+                    }`}
                 >
                   {l.label}
                 </Link>
@@ -486,7 +484,7 @@ const AboutPage = () => (
     </p>
     <p>
       Dengan mendukung <strong className="text-slate-900">Sustainable Development Goals (SDGs) 12: Konsumsi dan
-      Produksi yang Bertanggung Jawab</strong>, WiBite menghadirkan cara mudah untuk berbagi:
+        Produksi yang Bertanggung Jawab</strong>, WiBite menghadirkan cara mudah untuk berbagi:
       pendonor mempublikasikan makanan berlebih, penerima mengklaim, dan keduanya berkoordinasi
       lewat chat untuk penjemputan.
     </p>
@@ -859,11 +857,10 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                       setSelectedCity(city === 'Semua Kota' ? '' : city);
                       setShowCityDropdown(false);
                     }}
-                    className={`w-full text-left px-4 py-2 text-xs font-bold transition-all ${
-                      (city === 'Semua Kota' && !selectedCity) || (selectedCity === city)
-                        ? 'bg-emerald-50 text-emerald-600'
-                        : 'text-slate-600 hover:bg-slate-50'
-                    }`}
+                    className={`w-full text-left px-4 py-2 text-xs font-bold transition-all ${(city === 'Semua Kota' && !selectedCity) || (selectedCity === city)
+                      ? 'bg-emerald-50 text-emerald-600'
+                      : 'text-slate-600 hover:bg-slate-50'
+                      }`}
                   >
                     {city}
                   </button>
@@ -1009,236 +1006,236 @@ const ExplorePage = ({ user }: { user: User | null }) => {
           const total = selectedFood.portions || 0;
           const canClaim = remaining > 0;
           return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedFood(null)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white w-full max-w-4xl rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 max-h-[95vh] overflow-y-auto flex flex-col md:flex-row">
-              <button onClick={() => setSelectedFood(null)} className="absolute top-4 right-4 md:right-6 md:top-6 p-2 bg-white/80 backdrop-blur-md rounded-full text-slate-900 z-20 hover:bg-slate-100 transition-colors shadow-sm"><X className="w-5 h-5" /></button>
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedFood(null)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white w-full max-w-4xl rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 max-h-[95vh] overflow-y-auto flex flex-col md:flex-row">
+                <button onClick={() => setSelectedFood(null)} className="absolute top-4 right-4 md:right-6 md:top-6 p-2 bg-white/80 backdrop-blur-md rounded-full text-slate-900 z-20 hover:bg-slate-100 transition-colors shadow-sm"><X className="w-5 h-5" /></button>
 
-              {/* Left Image Side */}
-              <div className="md:w-5/12 h-64 md:h-auto relative bg-slate-100 shrink-0">
-                <img src={selectedFood.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800'} alt={selectedFood.name} className="w-full h-full object-cover" />
-                <div className="absolute top-4 left-4">
-                  <span className="px-3 py-1.5 bg-white text-emerald-600 text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm">
-                    {selectedFood.category || 'TERSEDIA'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Right Content Side */}
-              <div className="p-8 md:p-10 flex-1 flex flex-col">
-                <div className="flex flex-col-reverse md:flex-row justify-between items-start gap-6 mb-8">
-                  <div>
-                    <h2 className="text-3xl font-extrabold text-slate-900 mb-2 leading-tight tracking-tight">{selectedFood.name}</h2>
-                    <div className="flex items-center gap-1.5 text-slate-500 font-medium text-sm">
-                      <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
-                      {selectedFood.pickup_address?.split(',').slice(-2).join(', ') || 'Lokasi Tersedia'}
-                    </div>
+                {/* Left Image Side */}
+                <div className="md:w-5/12 h-64 md:h-auto relative bg-slate-100 shrink-0">
+                  <img src={selectedFood.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800'} alt={selectedFood.name} className="w-full h-full object-cover" />
+                  <div className="absolute top-4 left-4">
+                    <span className="px-3 py-1.5 bg-white text-emerald-600 text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm">
+                      {selectedFood.category || 'TERSEDIA'}
+                    </span>
                   </div>
+                </div>
 
-                  <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-sm flex items-center gap-3 shrink-0 md:mt-0 mt-4">
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center font-bold text-emerald-600 text-sm overflow-hidden">
-                      <img src={`https://ui-avatars.com/api/?name=${selectedFood.donor_name || 'D'}&background=10b981&color=fff`} className="w-full h-full object-cover" />
-                    </div>
+                {/* Right Content Side */}
+                <div className="p-8 md:p-10 flex-1 flex flex-col">
+                  <div className="flex flex-col-reverse md:flex-row justify-between items-start gap-6 mb-8">
                     <div>
-                      <p className="text-sm font-black text-slate-900 leading-tight pr-2">{selectedFood.donor_name || 'Donatur'}</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-amber-400 text-xs">★</span>
-                        <span className="text-xs font-bold text-amber-500">4.9</span>
+                      <h2 className="text-3xl font-extrabold text-slate-900 mb-2 leading-tight tracking-tight">{selectedFood.name}</h2>
+                      <div className="flex items-center gap-1.5 text-slate-500 font-medium text-sm">
+                        <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
+                        {selectedFood.pickup_address?.split(',').slice(-2).join(', ') || 'Lokasi Tersedia'}
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-sm flex items-center gap-3 shrink-0 md:mt-0 mt-4">
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center font-bold text-emerald-600 text-sm overflow-hidden">
+                        <img src={`https://ui-avatars.com/api/?name=${selectedFood.donor_name || 'D'}&background=10b981&color=fff`} className="w-full h-full object-cover" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-slate-900 leading-tight pr-2">{selectedFood.donor_name || 'Donatur'}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-amber-400 text-xs">★</span>
+                          <span className="text-xs font-bold text-amber-500">4.9</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="grid md:grid-cols-2 gap-8 mb-8">
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                      Waktu Pengambilan
-                    </p>
-                    <div className="bg-emerald-50/50 text-emerald-900 font-bold px-4 py-3 rounded-xl inline-block border border-emerald-100/50 text-sm">
-                      Batas: {new Date(selectedFood.expired_date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                  <div className="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                        Waktu Pengambilan
+                      </p>
+                      <div className="bg-emerald-50/50 text-emerald-900 font-bold px-4 py-3 rounded-xl inline-block border border-emerald-100/50 text-sm">
+                        Batas: {new Date(selectedFood.expired_date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                        Kondisi & Catatan Donor
+                      </p>
+                      <div className="flex gap-2 mb-2">
+                        <span className="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-md text-[9px] font-bold uppercase">{selectedFood.category || 'Murni'}</span>
+                        <span className="px-2 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-md text-[9px] font-bold uppercase">Halal</span>
+                      </div>
+                      <p className="text-slate-500 text-sm italic leading-relaxed">
+                        "{selectedFood.description || 'Kondisi makanan masih sangat baik dan layak konsumsi.'}"
+                      </p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                      Kondisi & Catatan Donor
-                    </p>
-                    <div className="flex gap-2 mb-2">
-                      <span className="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-md text-[9px] font-bold uppercase">{selectedFood.category || 'Murni'}</span>
-                      <span className="px-2 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-md text-[9px] font-bold uppercase">Halal</span>
+                  {/* Portions Selector Section */}
+                  <div className="mb-6 bg-slate-50 border border-slate-100 p-6 rounded-[2rem]">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                        Jumlah Porsi
+                      </span>
+                      <span className="text-emerald-600 font-extrabold text-xs">
+                        Tersedia: {selectedFood.portions - selectedFood.claimed_portions} Porsi
+                      </span>
                     </div>
-                    <p className="text-slate-500 text-sm italic leading-relaxed">
-                      "{selectedFood.description || 'Kondisi makanan masih sangat baik dan layak konsumsi.'}"
-                    </p>
-                  </div>
-                </div>
-                {/* Portions Selector Section */}
-                <div className="mb-6 bg-slate-50 border border-slate-100 p-6 rounded-[2rem]">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                      Jumlah Porsi
-                    </span>
-                    <span className="text-emerald-600 font-extrabold text-xs">
-                      Tersedia: {selectedFood.portions - selectedFood.claimed_portions} Porsi
-                    </span>
-                  </div>
-                  
-                  <label className="block text-xs font-black text-slate-700 mb-2">
-                    Berapa porsi yang ingin Anda klaim?
-                  </label>
-                  
-                  <input
-                    type="number"
-                    min="1"
-                    max={selectedFood.portions - selectedFood.claimed_portions}
-                    value={claimPortions}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 1;
-                      const maxVal = selectedFood.portions - selectedFood.claimed_portions;
-                      setClaimPortions(Math.max(1, Math.min(val, maxVal)));
-                    }}
-                    className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  />
-                </div>
 
-                {/* Request Pick-up Time Section */}
-                <div className="mb-6 bg-blue-50/40 border border-blue-100/50 p-6 rounded-[2rem]">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                      Request Pick-up
-                    </span>
-                    <Clock className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  
-                  <label className="block text-xs font-black text-slate-700 mb-2">
-                    Pilih Waktu Penjemputan
-                  </label>
-                  
-                  <div className="relative">
+                    <label className="block text-xs font-black text-slate-700 mb-2">
+                      Berapa porsi yang ingin Anda klaim?
+                    </label>
+
                     <input
-                      type="datetime-local"
-                      value={pickupTime}
+                      type="number"
+                      min="1"
+                      max={selectedFood.portions - selectedFood.claimed_portions}
+                      value={claimPortions}
                       onChange={(e) => {
-                        const val = e.target.value;
-                        if (val) {
-                          const selectedTime = new Date(val);
-                          const limitTime = new Date(selectedFood.expired_date);
-                          if (selectedTime > limitTime) {
-                            alert("Waktu penjemputan tidak boleh melebihi batas waktu pengambilan!");
-                            setPickupTime('');
-                          } else if (selectedTime < new Date()) {
-                            alert("Waktu penjemputan tidak boleh di masa lampau!");
-                            setPickupTime('');
-                          } else {
-                            setPickupTime(val);
-                          }
-                        } else {
-                          setPickupTime('');
-                        }
+                        const val = parseInt(e.target.value) || 1;
+                        const maxVal = selectedFood.portions - selectedFood.claimed_portions;
+                        setClaimPortions(Math.max(1, Math.min(val, maxVal)));
                       }}
                       className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                     />
                   </div>
-                  
-                  <span className="block text-[10px] font-medium text-slate-400 mt-2 italic">
-                    Silakan pilih waktu sebelum batas waktu pengambilan.
-                  </span>
-                </div>
 
-                <div className="mb-8 flex-grow">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                    Alamat Penjemputan
-                  </p>
-                  <p className="text-slate-700 text-sm font-medium mb-4 leading-relaxed">{selectedFood.pickup_address}</p>
-                  {(() => {
-                    const lat = selectedFood.lat ? parseFloat(selectedFood.lat) : -8.6704;
-                    const lng = selectedFood.lng ? parseFloat(selectedFood.lng) : 115.2126;
-                    return (
-                      <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative">
-                        <MapPreview lat={lat} lng={lng} label={selectedFood.name} />
-                        <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 hover:text-blue-700 shadow-sm transition-colors border border-slate-100">Buka di Maps ↗</a>
-                      </div>
-                    );
-                  })()}
-                </div>
+                  {/* Request Pick-up Time Section */}
+                  <div className="mb-6 bg-blue-50/40 border border-blue-100/50 p-6 rounded-[2rem]">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                        Request Pick-up
+                      </span>
+                      <Clock className="w-4 h-4 text-emerald-600" />
+                    </div>
 
-                <div className="mt-auto pt-4 border-t border-slate-50 flex gap-3">
-                  <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
-                    <MessageSquare className="w-4 h-4" /> Chat
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!pickupTime) {
-                        alert("Silakan pilih waktu penjemputan terlebih dahulu.");
-                        return;
-                      }
-                      handleClaim(selectedFood.id, pickupTime, claimPortions);
-                    }}
-                    className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center"
-                  >
-                    Klaim Makanan
-                  </button>
-                </div>
+                    <label className="block text-xs font-black text-slate-700 mb-2">
+                      Pilih Waktu Penjemputan
+                    </label>
 
-                <div className="mb-8 flex-grow">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                    Alamat Penjemputan
-                  </p>
-                  <p className="text-slate-700 text-sm font-medium mb-4 leading-relaxed">{selectedFood.pickup_address}</p>
-                  {(() => {
-                    const lat = selectedFood.lat ? parseFloat(selectedFood.lat) : -8.6704;
-                    const lng = selectedFood.lng ? parseFloat(selectedFood.lng) : 115.2126;
-                    return (
-                      <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative">
-                        <MapPreview lat={lat} lng={lng} label={selectedFood.name} />
-                        <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 hover:text-blue-700 shadow-sm transition-colors border border-slate-100">Buka di Maps ↗</a>
-                      </div>
-                    );
-                  })()}
-                </div>
+                    <div className="relative">
+                      <input
+                        type="datetime-local"
+                        value={pickupTime}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val) {
+                            const selectedTime = new Date(val);
+                            const limitTime = new Date(selectedFood.expired_date);
+                            if (selectedTime > limitTime) {
+                              alert("Waktu penjemputan tidak boleh melebihi batas waktu pengambilan!");
+                              setPickupTime('');
+                            } else if (selectedTime < new Date()) {
+                              alert("Waktu penjemputan tidak boleh di masa lampau!");
+                              setPickupTime('');
+                            } else {
+                              setPickupTime(val);
+                            }
+                          } else {
+                            setPickupTime('');
+                          }
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                      />
+                    </div>
 
-                <div className="mt-auto pt-4 border-t border-slate-50 flex gap-3">
-                  <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
-                    <MessageSquare className="w-4 h-4" /> Chat
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!pickupTime) {
-                        alert("Silakan pilih waktu penjemputan terlebih dahulu.");
-                        return;
-                      }
-                      handleClaim(selectedFood.id, pickupTime, claimPortions);
-                    }}
-                    className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center"
-                  >
-                    Klaim Makanan
-                  </button>
-                </div>
+                    <span className="block text-[10px] font-medium text-slate-400 mt-2 italic">
+                      Silakan pilih waktu sebelum batas waktu pengambilan.
+                    </span>
+                  </div>
 
-                <p className="text-slate-600 text-sm leading-relaxed mb-6">{selectedFood.description || 'Tidak ada catatan.'}</p>
-
-                {canClaim ? (
-                  <div className="pt-4 border-t border-slate-100">
-                    <p className="text-xs text-slate-500 mb-4 text-center">
-                      Setiap penerima hanya bisa klaim <strong className="text-slate-900">1 porsi</strong> per makanan.
+                  <div className="mb-8 flex-grow">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                      Alamat Penjemputan
                     </p>
+                    <p className="text-slate-700 text-sm font-medium mb-4 leading-relaxed">{selectedFood.pickup_address}</p>
+                    {(() => {
+                      const lat = selectedFood.lat ? parseFloat(selectedFood.lat) : -8.6704;
+                      const lng = selectedFood.lng ? parseFloat(selectedFood.lng) : 115.2126;
+                      return (
+                        <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative">
+                          <MapPreview lat={lat} lng={lng} label={selectedFood.name} />
+                          <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 hover:text-blue-700 shadow-sm transition-colors border border-slate-100">Buka di Maps ↗</a>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="mt-auto pt-4 border-t border-slate-50 flex gap-3">
+                    <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
+                      <MessageSquare className="w-4 h-4" /> Chat
+                    </button>
                     <button
-                      onClick={() => handleClaim(selectedFood.id, pickupTime, claimPortions)}
-                      disabled={claiming}
-                      className="w-full py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all disabled:opacity-60"
+                      onClick={() => {
+                        if (!pickupTime) {
+                          alert("Silakan pilih waktu penjemputan terlebih dahulu.");
+                          return;
+                        }
+                        handleClaim(selectedFood.id, pickupTime, claimPortions);
+                      }}
+                      className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center"
                     >
-                      {claiming ? 'Memproses...' : 'Klaim 1 Porsi'}
+                      Klaim Makanan
                     </button>
                   </div>
-                ) : (
-                  <div className="pt-4 border-t border-slate-100">
-                    <div className="p-5 bg-slate-50 rounded-2xl text-center text-slate-500 font-bold text-sm">
-                      Semua porsi sudah diklaim.
-                    </div>
+
+                  <div className="mb-8 flex-grow">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                      Alamat Penjemputan
+                    </p>
+                    <p className="text-slate-700 text-sm font-medium mb-4 leading-relaxed">{selectedFood.pickup_address}</p>
+                    {(() => {
+                      const lat = selectedFood.lat ? parseFloat(selectedFood.lat) : -8.6704;
+                      const lng = selectedFood.lng ? parseFloat(selectedFood.lng) : 115.2126;
+                      return (
+                        <div className="rounded-2xl overflow-hidden border border-slate-100 h-36 relative">
+                          <MapPreview lat={lat} lng={lng} label={selectedFood.name} />
+                          <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 hover:text-blue-700 shadow-sm transition-colors border border-slate-100">Buka di Maps ↗</a>
+                        </div>
+                      );
+                    })()}
                   </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
+
+                  <div className="mt-auto pt-4 border-t border-slate-50 flex gap-3">
+                    <button onClick={() => handleChatDonor(selectedFood)} className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2">
+                      <MessageSquare className="w-4 h-4" /> Chat
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!pickupTime) {
+                          alert("Silakan pilih waktu penjemputan terlebih dahulu.");
+                          return;
+                        }
+                        handleClaim(selectedFood.id, pickupTime, claimPortions);
+                      }}
+                      className="flex-1 py-4 px-6 bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all hover:-translate-y-0.5 text-center"
+                    >
+                      Klaim Makanan
+                    </button>
+                  </div>
+
+                  <p className="text-slate-600 text-sm leading-relaxed mb-6">{selectedFood.description || 'Tidak ada catatan.'}</p>
+
+                  {canClaim ? (
+                    <div className="pt-4 border-t border-slate-100">
+                      <p className="text-xs text-slate-500 mb-4 text-center">
+                        Setiap penerima hanya bisa klaim <strong className="text-slate-900">1 porsi</strong> per makanan.
+                      </p>
+                      <button
+                        onClick={() => handleClaim(selectedFood.id, pickupTime, claimPortions)}
+                        disabled={claiming}
+                        className="w-full py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all disabled:opacity-60"
+                      >
+                        {claiming ? 'Memproses...' : 'Klaim 1 Porsi'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="pt-4 border-t border-slate-100">
+                      <div className="p-5 bg-slate-50 rounded-2xl text-center text-slate-500 font-bold text-sm">
+                        Semua porsi sudah diklaim.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
           );
         })()}
       </AnimatePresence>
@@ -1254,7 +1251,7 @@ const AuthPage = ({ type, onAuthSuccess }: { type: 'login' | 'register'; onAuthS
   const [role, setRole] = useState<'donor' | 'receiver'>('donor');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); 
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -1275,7 +1272,7 @@ const AuthPage = ({ type, onAuthSuccess }: { type: 'login' | 'register'; onAuthS
       } else if (loggedInUser.role === 'receiver') {
         navigate('/explore');
       } else {
-  navigate('/dashboard');
+        navigate('/dashboard');
       }
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data?.errors?.email?.[0] || 'Terjadi kesalahan.');
@@ -1685,7 +1682,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
 
             {/* Avatar Upload */}
             <div className="flex flex-col items-center justify-center py-6 border-b border-slate-50 w-full">
-            
+
               <div className="relative w-32 h-32 shrink-0">
                 {localData.avatar ? (
                   <img
@@ -1699,7 +1696,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
                   </div>
                 )}
 
-               
+
                 <div className="absolute bottom-1 right-1 z-10">
                   <button
                     type="button"
@@ -1709,10 +1706,10 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
                     <Camera className="w-4 h-4" />
                   </button>
 
-                 
+
                   {showPhotoMenu && (
                     <div className="absolute top-11 left-1/2 -translate-x-1/2 z-30 bg-white border border-slate-100 shadow-xl rounded-xl p-2 flex flex-col gap-1 w-28 animate-in fade-in zoom-in-95 duration-100">
-                      
+
                       {/* Tambah */}
                       <label className="w-full text-center px-2 py-1.5 bg-emerald-5 text-emerald-700 hover:bg-emerald-100 font-bold text-[10px] rounded-lg transition-colors cursor-pointer block">
                         Tambah
@@ -1770,12 +1767,12 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
               </div>
             </div>
 
-        
+
             <div>
               <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Nomor Telepon / WhatsApp</label>
               <input
                 type="tel"
-                value={formData.phone || ''} 
+                value={formData.phone || ''}
                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="Contoh: 081234567890"
                 className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 font-bold text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500"
@@ -1793,7 +1790,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
               />
             </div>
 
-            
+
             <div>
               <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Bio</label>
               <textarea
@@ -1880,7 +1877,7 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // === HANYA MENAMBAHKAN STATE UNTUK DONASI FINANSIAL ===
   const [financialDonations, setFinancialDonations] = useState<any[]>([]);
 
@@ -1952,9 +1949,9 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
   // === HANYA MENAMBAHKAN PERHITUNGAN TOTAL DANA SECARA AMAN ===
   const totalDanaTerkumpul = Array.isArray(financialDonations)
     ? financialDonations.reduce((acc: number, curr: any) => {
-        const nilai = curr && curr.amount ? Number(curr.amount) : 0;
-        return acc + (isNaN(nilai) ? 0 : nilai);
-      }, 0)
+      const nilai = curr && curr.amount ? Number(curr.amount) : 0;
+      return acc + (isNaN(nilai) ? 0 : nilai);
+    }, 0)
     : 0;
 
   return (
@@ -2033,7 +2030,7 @@ const AdminDashboard = ({ user }: { user: User | null }) => {
             </span>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-3xl border border-slate-50 shadow-sm overflow-hidden">
           <table className="w-full text-left">
             <thead className="bg-slate-900 text-white">
@@ -2112,7 +2109,7 @@ const App = () => {
 
   const handleLogout = async () => {
     await authService.logout();
-    
+
     localStorage.removeItem('wibite_user_id');
     setUser(null);
     window.location.href = '/';
@@ -2131,110 +2128,110 @@ const App = () => {
   return (
     <Router>
       <ToastProvider>
-      <ConfirmProvider>
-      <div className={`min-h-screen flex flex-col bg-slate-50 selection:bg-emerald-500/20 selection:text-emerald-500 ${themeClass}`}>
-        <Navbar user={user} onLogout={handleLogout} onUserUpdate={setUser} />
-        <main className="flex-1 flex flex-col">
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/explore" element={<ExplorePage user={user} />} />
-            <Route path="/donate" element={<DonationFinancial />} />
-            <Route path="/forum" element={<ForumPage user={user} />} />
-            <Route path="/guidelines" element={<GuidelinePage />} />
-            <Route path="/info" element={<HelpInfo />} />
-            <Route path="/dashboard" element={<DashboardPage user={user} onAuthSuccess={setUser} />} />
-            <Route path="/history" element={user ? <DonationHistory user={user} /> : <Navigate to="/login" />} />
-            <Route path="/profile" element={<ProfilePage user={user} onUpdate={setUser} />} />
-            <Route path="/chat" element={user ? <Chat user={user} /> : <Navigate to="/login" />} />
-            <Route path="/klaim" element={user ? <ClaimsPage user={user} /> : <Navigate to="/login" />} />
-            <Route path="/rateback" element={user ? <RatebackPage user={user} /> : <Navigate to="/login" />} />
-            <Route path="/admin" element={<AdminDashboard user={user} />} />
-            <Route path="/login" element={<AuthPage type="login" onAuthSuccess={setUser} />} />
-            <Route path="/register" element={<AuthPage type="register" onAuthSuccess={setUser} />} />
-            <Route path="/donation" element={<DonationFinancial />} />
-          </Routes>
-        </main>
-        <footer className="bg-white border-t border-slate-100 mt-auto">
-          <div className="max-w-7xl mx-auto px-6 lg:px-10 py-16 grid md:grid-cols-4 gap-10">
-            {/* Brand */}
-            <div className="md:col-span-2">
-              <Link to="/" className="flex items-center gap-2 mb-5">
-                <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-emerald-500/20">W</div>
-                <span className="text-xl font-bold tracking-tight">wibite</span>
-              </Link>
-              <p className="text-slate-500 text-sm max-w-sm leading-relaxed font-medium mb-6">
-                Platform redistribusi makanan berlebih di Indonesia yang mendukung SDGs 12. Menghubungkan kebaikan, satu porsi dalam satu waktu.
-              </p>
-              <div className="flex items-center gap-3">
-                <a href="#" className="w-9 h-9 bg-slate-50 hover:bg-emerald-500 hover:text-white text-slate-400 rounded-xl flex items-center justify-center transition-colors" aria-label="Instagram">
-                  <Instagram className="w-4 h-4" />
-                </a>
-                <a href="#" className="w-9 h-9 bg-slate-50 hover:bg-emerald-500 hover:text-white text-slate-400 rounded-xl flex items-center justify-center transition-colors" aria-label="Twitter">
-                  <Twitter className="w-4 h-4" />
-                </a>
-                <a href="#" className="w-9 h-9 bg-slate-50 hover:bg-emerald-500 hover:text-white text-slate-400 rounded-xl flex items-center justify-center transition-colors" aria-label="Facebook">
-                  <Facebook className="w-4 h-4" />
-                </a>
-                <a href="mailto:hello@wibite.com" className="w-9 h-9 bg-slate-50 hover:bg-emerald-500 hover:text-white text-slate-400 rounded-xl flex items-center justify-center transition-colors" aria-label="Email">
-                  <MailIcon className="w-4 h-4" />
-                </a>
+        <ConfirmProvider>
+          <div className={`min-h-screen flex flex-col bg-slate-50 selection:bg-emerald-500/20 selection:text-emerald-500 ${themeClass}`}>
+            <Navbar user={user} onLogout={handleLogout} onUserUpdate={setUser} />
+            <main className="flex-1 flex flex-col">
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/explore" element={<ExplorePage user={user} />} />
+                <Route path="/donate" element={<DonationFinancial />} />
+                <Route path="/forum" element={<ForumPage user={user} />} />
+                <Route path="/guidelines" element={<GuidelinePage />} />
+                <Route path="/info" element={<HelpInfo />} />
+                <Route path="/dashboard" element={<DashboardPage user={user} onAuthSuccess={setUser} />} />
+                <Route path="/history" element={user ? <DonationHistory user={user} /> : <Navigate to="/login" />} />
+                <Route path="/profile" element={<ProfilePage user={user} onUpdate={setUser} />} />
+                <Route path="/chat" element={user ? <Chat user={user} /> : <Navigate to="/login" />} />
+                <Route path="/klaim" element={user ? <ClaimsPage user={user} /> : <Navigate to="/login" />} />
+                <Route path="/rateback" element={user ? <RatebackPage user={user} /> : <Navigate to="/login" />} />
+                <Route path="/admin" element={<AdminDashboard user={user} />} />
+                <Route path="/login" element={<AuthPage type="login" onAuthSuccess={setUser} />} />
+                <Route path="/register" element={<AuthPage type="register" onAuthSuccess={setUser} />} />
+                <Route path="/donation" element={<DonationFinancial />} />
+              </Routes>
+            </main>
+            <footer className="bg-white border-t border-slate-100 mt-auto">
+              <div className="max-w-7xl mx-auto px-6 lg:px-10 py-16 grid md:grid-cols-4 gap-10">
+                {/* Brand */}
+                <div className="md:col-span-2">
+                  <Link to="/" className="flex items-center gap-2 mb-5">
+                    <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-emerald-500/20">W</div>
+                    <span className="text-xl font-bold tracking-tight">wibite</span>
+                  </Link>
+                  <p className="text-slate-500 text-sm max-w-sm leading-relaxed font-medium mb-6">
+                    Platform redistribusi makanan berlebih di Indonesia yang mendukung SDGs 12. Menghubungkan kebaikan, satu porsi dalam satu waktu.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <a href="#" className="w-9 h-9 bg-slate-50 hover:bg-emerald-500 hover:text-white text-slate-400 rounded-xl flex items-center justify-center transition-colors" aria-label="Instagram">
+                      <Instagram className="w-4 h-4" />
+                    </a>
+                    <a href="#" className="w-9 h-9 bg-slate-50 hover:bg-emerald-500 hover:text-white text-slate-400 rounded-xl flex items-center justify-center transition-colors" aria-label="Twitter">
+                      <Twitter className="w-4 h-4" />
+                    </a>
+                    <a href="#" className="w-9 h-9 bg-slate-50 hover:bg-emerald-500 hover:text-white text-slate-400 rounded-xl flex items-center justify-center transition-colors" aria-label="Facebook">
+                      <Facebook className="w-4 h-4" />
+                    </a>
+                    <a href="mailto:hello@wibite.com" className="w-9 h-9 bg-slate-50 hover:bg-emerald-500 hover:text-white text-slate-400 rounded-xl flex items-center justify-center transition-colors" aria-label="Email">
+                      <MailIcon className="w-4 h-4" />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Tautan Cepat */}
+                <div className="md:ml-38">
+                  <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400 mb-5">Tautan Cepat</h4>
+                  <ul className="space-y-3">
+                    <li><Link to="/forum" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Forum Komunitas</Link></li>
+                    <li><Link to="/guidelines" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Pedoman Donasi</Link></li>
+                    <li><Link to="/rateback" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Rating & Masukan</Link></li>
+                  </ul>
+                </div>
+
+                {/* Legal */}
+                <div className="md:justify-self-end md:text-left">
+                  <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400 mb-5">Informasi</h4>
+                  <ul className="space-y-3">
+                    <li>
+                      <Link to="/about" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                        <Info className="w-3.5 h-3.5" /> Tentang Kami
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/privacy" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                        <Shield className="w-3.5 h-3.5" /> Kebijakan Privasi
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/terms" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                        <FileText className="w-3.5 h-3.5" /> Syarat & Ketentuan
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/contact" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5" /> Kontak
+                      </Link>
+                    </li>
+                  </ul>
+                </div>
               </div>
-            </div>
 
-            {/* Tautan Cepat */}
-            <div className="md:ml-38">
-              <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400 mb-5">Tautan Cepat</h4>
-              <ul className="space-y-3">
-                <li><Link to="/forum" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Forum Komunitas</Link></li>
-                <li><Link to="/guidelines" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Pedoman Donasi</Link></li>
-                <li><Link to="/rateback" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Rating & Masukan</Link></li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div className="md:justify-self-end md:text-left">
-              <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400 mb-5">Informasi</h4>
-              <ul className="space-y-3">
-                <li>
-                  <Link to="/about" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
-                    <Info className="w-3.5 h-3.5" /> Tentang Kami
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/privacy" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
-                    <Shield className="w-3.5 h-3.5" /> Kebijakan Privasi
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/terms" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
-                    <FileText className="w-3.5 h-3.5" /> Syarat & Ketentuan
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/contact" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors inline-flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5" /> Kontak
-                  </Link>
-                </li>
-              </ul>
-            </div>
+              {/* Bottom bar */}
+              <div className="border-t border-slate-100">
+                <div className="max-w-7xl mx-auto px-6 lg:px-10 py-6 flex flex-col md:flex-row items-center justify-between gap-3">
+                  <p className="text-xs text-slate-400 font-medium">
+                    &copy; {new Date().getFullYear()} <span className="font-bold text-slate-600">WiBite Team</span>. All rights reserved.
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-2">
+                    <span>Made with</span>
+                    <Heart className="w-3 h-3 text-emerald-500 fill-emerald-500" />
+                    <span>for SDGs 12</span>
+                  </p>
+                </div>
+              </div>
+            </footer>
           </div>
-
-          {/* Bottom bar */}
-          <div className="border-t border-slate-100">
-            <div className="max-w-7xl mx-auto px-6 lg:px-10 py-6 flex flex-col md:flex-row items-center justify-between gap-3">
-              <p className="text-xs text-slate-400 font-medium">
-                &copy; {new Date().getFullYear()} <span className="font-bold text-slate-600">WiBite Team</span>. All rights reserved.
-              </p>
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-2">
-                <span>Made with</span>
-                <Heart className="w-3 h-3 text-emerald-500 fill-emerald-500" />
-                <span>for SDGs 12</span>
-              </p>
-            </div>
-          </div>
-        </footer>
-      </div>
-      </ConfirmProvider>
+        </ConfirmProvider>
       </ToastProvider>
     </Router>
   );

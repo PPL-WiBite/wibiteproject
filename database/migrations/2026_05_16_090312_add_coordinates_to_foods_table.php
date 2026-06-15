@@ -8,16 +8,28 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('foods', function (Blueprint $table) {
-            $table->decimal('lat', 10, 7)->nullable()->after('pickup_address');
-            $table->decimal('lng', 10, 7)->nullable()->after('lat');
-        });
+        if (!Schema::hasColumn('foods', 'lat')) {
+            Schema::table('foods', function (Blueprint $table) {
+                $table->decimal('lat', 10, 7)->nullable()->after('pickup_address');
+            });
+        }
+
+        if (!Schema::hasColumn('foods', 'lng')) {
+            Schema::table('foods', function (Blueprint $table) {
+                $table->decimal('lng', 10, 7)->nullable()->after('lat');
+            });
+        }
     }
 
     public function down(): void
     {
         Schema::table('foods', function (Blueprint $table) {
-            $table->dropColumn(['lat', 'lng']);
+            if (Schema::hasColumn('foods', 'lat')) {
+                $table->dropColumn('lat');
+            }
+            if (Schema::hasColumn('foods', 'lng')) {
+                $table->dropColumn('lng');
+            }
         });
     }
 };
