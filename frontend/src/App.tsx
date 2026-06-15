@@ -6,7 +6,7 @@ import {
   Globe, Leaf, Clock, Info, X, Star, CheckCircle2, Lock, Mail,
   User as UserIcon, MessageCircle, LogIn, Trash2, Pencil, PlusCircle,
   HandHeart, Utensils, Instagram, Twitter, Facebook, Mail as MailIcon, Eye, EyeOff,
-  Shield, FileText, Phone
+  Shield, FileText, Phone, MessageSquare, Camera, Menu, CircleHelp, Sparkles, Save
 } from 'lucide-react';
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
@@ -183,7 +183,7 @@ const Navbar = ({ user, onLogout, onUserUpdate }: { user: User | null; onLogout:
                 className="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-emerald-100"
                 title="Info & Bantuan"
               >
-                <HelpCircle className="w-4.5 h-4.5" />
+                <CircleHelp className="w-4.5 h-4.5" />
               </Link>
               <button
                 onClick={onLogout}
@@ -1656,7 +1656,7 @@ const ProfilePage = ({ user, onUpdate }: { user: User | null; onUpdate: (u: User
               onClick={() => navigate('/info')}
               className="w-full px-4 py-3 text-slate-500 hover:bg-slate-100 hover:text-slate-700 font-bold text-xs rounded-2xl flex items-center gap-3 text-left focus:outline-none transition-colors"
             >
-              <HelpCircle className="w-4 h-4" />
+              <CircleHelp className="w-4 h-4" />
               Help
             </button>
           </div>
