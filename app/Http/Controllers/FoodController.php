@@ -7,12 +7,18 @@ use App\Models\Claim;
 use App\Models\Food;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class FoodController extends Controller
 {
     public function index(): JsonResponse
     {
-        $foods = Food::orderBy('created_at', 'desc')->get();
+        $foods = Food::orderBy('created_at', 'desc')->get()
+            ->map(function (Food $food) {
+                $food->remaining_portions = $food->remainingPortions();
+                return $food;
+            });
+
         return response()->json($foods);
     }
 
@@ -23,27 +29,44 @@ class FoodController extends Controller
             'portions' => 'required|integer|min:1',
             'weight_kg' => 'nullable|numeric|min:0',
             'pickup_address' => 'required|string',
-            'expired_date' => 'nullable|string',
+            'lat' => 'nullable|numeric',
+            'lng' => 'nullable|numeric',
+            'expired_date' => 'required|string',
             'description' => 'nullable|string',
             'category' => 'nullable|string',
             'image' => 'nullable|string',
+            'image_file' => 'nullable|image|max:4096',
         ]);
 
         $user = $request->user();
 
+        $imageUrl = $validated['image'] ?? null;
+        if ($request->hasFile('image_file')) {
+            $path = $request->file('image_file')->store('foods', 'public');
+            $imageUrl = url('storage/' . $path);
+        }
+
+        $expiredAt = $validated['expired_at'] ?? null;
+        $expiredDateLabel = $validated['expired_date'] ?? ($expiredAt ?: 'Hari ini');
+
         $food = Food::create([
             'name' => $validated['name'],
             'portions' => $validated['portions'],
+            'claimed_portions' => 0,
             'weight_kg' => $validated['weight_kg'] ?? 1,
             'pickup_address' => $validated['pickup_address'],
-            'expired_date' => $validated['expired_date'] ?? 'Hari ini',
+            'lat' => $validated['lat'] ?? null,
+            'lng' => $validated['lng'] ?? null,
+            'expired_date' => $validated['expired_date'],
             'description' => $validated['description'] ?? '',
             'category' => $validated['category'] ?? 'Makanan Matang',
             'status' => 'available',
             'donor_id' => $user->id,
             'donor_name' => $user->name,
-            'image' => $validated['image'] ?? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800',
+            'image' => $imageUrl ?: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800',
         ]);
+
+        $food->remaining_portions = $food->remainingPortions();
 
         return response()->json($food, 201);
     }
@@ -61,12 +84,52 @@ class FoodController extends Controller
             'portions' => 'nullable|integer|min:1',
             'weight_kg' => 'nullable|numeric|min:0',
             'pickup_address' => 'nullable|string',
+            'lat' => 'nullable|numeric',
+            'lng' => 'nullable|numeric',
             'expired_date' => 'nullable|string',
+            'expired_at' => 'nullable|date',
             'description' => 'nullable|string',
+            'category' => 'nullable|string',
             'status' => 'nullable|in:available,claimed,completed',
+            'image' => 'nullable|string',
+            'image_file' => 'nullable|image|max:4096',
         ]);
 
-        $food->update(array_filter($validated, fn($v) => $v !== null));
+        if ($request->hasFile('image_file')) {
+            $path = $request->file('image_file')->store('foods', 'public');
+            $validated['image'] = url('storage/' . $path);
+        }
+
+        // Pastikan portions baru tidak lebih kecil dari yang sudah diklaim
+        if (array_key_exists('portions', $validated) && $validated['portions'] !== null) {
+            if ($validated['portions'] < $food->claimed_portions) {
+                return response()->json([
+                    'error' => "Porsi baru ({$validated['portions']}) tidak boleh lebih kecil dari porsi yang sudah diklaim ({$food->claimed_portions}).",
+                ], 422);
+            }
+        }
+
+        unset($validated['image_file']);
+        $payload = array_filter($validated, fn ($v) => $v !== null);
+
+        // Kalau expired_at diubah, update juga label expired_date supaya konsisten
+        if (array_key_exists('expired_at', $payload) && !array_key_exists('expired_date', $payload)) {
+            $payload['expired_date'] = $payload['expired_at'];
+        }
+
+        $food->update($payload);
+
+        // Recalculate status kalau portions berubah
+        if (array_key_exists('portions', $payload)) {
+            if ($food->claimed_portions >= $food->portions) {
+                $food->status = $food->status === 'completed' ? 'completed' : 'claimed';
+            } else {
+                $food->status = $food->status === 'completed' ? 'completed' : 'available';
+            }
+            $food->save();
+        }
+
+        $food->remaining_portions = $food->remainingPortions();
 
         return response()->json($food);
     }
@@ -84,10 +147,16 @@ class FoodController extends Controller
         return response()->json(['success' => true]);
     }
 
+    /**
+     * Claim sebagian atau seluruh porsi dari sebuah makanan.
+     * Status food hanya berubah jadi "claimed" saat semua porsi habis diklaim.
+     */
     public function claim(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'food_id' => 'required|exists:foods,id',
+            'pickup_time' => 'required|string',
+            'portions' => 'nullable|integer|min:1',
         ]);
 
         $user = $request->user();
@@ -178,7 +247,8 @@ class FoodController extends Controller
     public function completeClaim(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'food_id' => 'required|exists:foods,id',
+            'claim_id' => 'nullable|exists:claims,id',
+            'food_id' => 'nullable|exists:foods,id',
         ]);
 
         $user = $request->user();
