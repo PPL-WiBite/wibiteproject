@@ -87,7 +87,7 @@ export default function DonorDashboard({ user, openAddFood, onCloseAddFood, edit
         peopleHelped: totalPeopleHelped,
       });
     } catch (e) {
-      console.error(e);
+      console.error('Error fetching donor dashboard data:', e);
     } finally {
       setLoading(false);
     }

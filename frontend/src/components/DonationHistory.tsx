@@ -33,7 +33,7 @@ export default function DonationHistory({ user }: DonationHistoryProps) {
       setFoods(myFood);
       setClaims(resClaims.data);
     } catch (e) {
-      console.error(e);
+      console.error('Error fetching donation history:', e);
     } finally {
       setLoading(false);
     }
