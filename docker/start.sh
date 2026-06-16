@@ -4,6 +4,8 @@ set -e
 export PORT=${PORT:-10000}
 
 echo ">> PORT: $PORT"
+echo ">> DB_CONNECTION: $DB_CONNECTION"
+echo ">> SESSION_CONNECTION: $SESSION_CONNECTION"
 
 # 1. Pastikan APP_KEY format Laravel yang benar (base64:xxx, 32 bytes)
 if [ -z "$APP_KEY" ] || [[ "$APP_KEY" != base64:* ]]; then

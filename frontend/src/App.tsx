@@ -10,11 +10,32 @@ import {
 import { authService, type User } from '@/lib/auth';
 import api from '@/lib/api';
 import ForumPage from '@/components/Forum';
+import DonorDashboard from '@/components/DonorDashboard';
+import ReceiverDashboard from '@/components/ReceiverDashboard';
+import MapPreview from '@/components/MapPreview';
+import Chat from '@/components/Chat';
+import ExploreMap from '@/components/ExploreMap';
+import DonationHistory from '@/components/DonationHistory';
+import ClaimsPage from '@/components/Claims';
+import HelpInfo from '@/components/HelpInfo';
+import MapPicker from '@/components/MapPicker';
+import RatebackPage from '@/components/Rateback';
+import DonationFinancial from '@/components/DonationFinancial';
+import { ToastProvider, useToast } from '@/components/Toast';
+import { ConfirmProvider, useConfirm } from '@/components/Confirm';
 
 // --- Navbar ---
 const Navbar = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [roleLoading, setRoleLoading] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const mobileLinks = [
+    { to: '/explore', label: 'Cari Makanan' },
+    { to: '/forum', label: 'Forum' },
+    { to: '/info', label: 'Info & Bantuan' },
+  ];
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
@@ -203,6 +224,7 @@ const GuidelinePage = () => {
 // --- Explore Page ---
 const ExplorePage = ({ user }: { user: User | null }) => {
   const [foods, setFoods] = useState<any[]>([]);
+  const [claiming, setClaiming] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFood, setSelectedFood] = useState<any>(null);
@@ -305,9 +327,27 @@ const ExplorePage = ({ user }: { user: User | null }) => {
                 <h2 className="text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">{selectedFood.name}</h2>
                 <div className="flex items-center gap-2 text-slate-500 font-medium text-sm mb-6"><MapPin className="w-4 h-4 text-emerald-500" /> {selectedFood.pickup_address}</div>
                 <p className="text-slate-600 text-sm leading-relaxed mb-6">{selectedFood.description || 'Tidak ada catatan.'}</p>
-                <div className="flex gap-4 pt-4 border-t border-slate-100">
-                  <button onClick={() => handleClaim(selectedFood.id)} className="flex-1 py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all">Klaim Makanan</button>
-                </div>
+
+                {canClaim ? (
+                  <div className="pt-4 border-t border-slate-100">
+                    <p className="text-xs text-slate-500 mb-4 text-center">
+                      Setiap penerima hanya bisa klaim <strong className="text-slate-900">1 porsi</strong> per makanan.
+                    </p>
+                    <button
+                      onClick={() => handleClaim(selectedFood.id, pickupTime, claimPortions)}
+                      disabled={claiming}
+                      className="w-full py-4 px-6 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all disabled:opacity-60"
+                    >
+                      {claiming ? 'Memproses...' : 'Klaim 1 Porsi'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pt-4 border-t border-slate-100">
+                    <div className="p-5 bg-slate-50 rounded-2xl text-center text-slate-500 font-bold text-sm">
+                      Semua porsi sudah diklaim.
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
@@ -351,14 +391,6 @@ const AuthPage = ({ type }: { type: 'login' | 'register' }) => {
     <div className="min-h-screen flex flex-col md:flex-row bg-white">
       {/* KIRI: Showcase panel (hidden di mobile) */}
       <div className="hidden md:flex md:w-1/2 bg-emerald-500 relative overflow-hidden items-center justify-center p-12 lg:p-20">
-        {/* Background image with overlay */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1488459718432-068514d04736?ixlib=rb-4.0.3&auto=format&fit=crop&q=80&w=2070"
-            className="w-full h-full object-cover opacity-30 mix-blend-overlay"
-            alt="Komunitas berbagi makanan"
-          />
-        </div>
 
         {/* Decorative blobs */}
         <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse" />
@@ -1000,6 +1032,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/explore" element={<ExplorePage user={user} />} />
+            <Route path="/donate" element={<DonationFinancial />} />
             <Route path="/forum" element={<ForumPage user={user} />} />
             <Route path="/guidelines" element={<GuidelinePage />} />
             <Route path="/dashboard" element={<DashboardPage user={user} />} />
