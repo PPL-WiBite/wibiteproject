@@ -53,8 +53,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/food/{food}', [FoodController::class, 'destroy']);
 
     // Claim
+    Route::get('/claims', [FoodController::class, 'myClaims']);
+    Route::get('/donor/claims', [FoodController::class, 'incomingClaims']);
     Route::post('/claim', [FoodController::class, 'claim']);
     Route::post('/claims/complete', [FoodController::class, 'completeClaim']);
+    Route::post('/claims/{claim}/confirm', [FoodController::class, 'confirmClaim']);
+    Route::post('/claims/{claim}/reject', [FoodController::class, 'rejectClaim']);
+    Route::post('/claims/{claim}/complete', [FoodController::class, 'completeSingleClaim']);
 
     // Forum - CRUD
     Route::post('/forum', [ForumController::class, 'store']);

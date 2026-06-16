@@ -12,7 +12,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('food_id')->constrained('foods')->onDelete('cascade');
             $table->foreignId('receiver_id')->constrained('users')->onDelete('cascade');
-            $table->enum('status', ['active', 'completed'])->default('active');
+            $table->enum('status', ['active', 'confirmed', 'completed', 'rejected'])->default('active');
+            $table->string('code')->nullable();
+            $table->string('pickup_time')->nullable();
             $table->timestamps();
         });
     }
